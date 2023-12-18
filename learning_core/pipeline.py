@@ -1,0 +1,143 @@
+from __future__ import annotations
+import collections
+import graphlib
+import itertools
+
+from . import step as _step
+from .handle import PipelineStepHandle
+from .instructions import Instruction, Start, Sync
+from .plan import ExecutionPlan
+
+
+def _powerset(x):
+    return itertools.chain.from_iterable(
+        itertools.combinations(x, r) for r in range(1, len(x)+1)
+    )
+
+
+class Pipeline:
+
+    def __init__(self, name: str):
+        self._name = name
+        self._steps: dict[PipelineStepHandle, type[_step.PipelineStep]] = {}
+        self._connections = collections.defaultdict(set)
+        self._inputs = set()
+        self._outputs = set()
+        self._output_files = {}
+
+    def add_source(self, factory: type[_step.PipelineStep], *, is_sink=False, filename: str = '') -> PipelineStepHandle:
+        handle = self.add_step(factory)
+        self._inputs.add(handle)
+        if is_sink:
+            if not filename:
+                raise ValueError(f"Filename must be provided for sink")
+            self._outputs.add(handle)
+            self._output_files[handle] = filename
+        return handle
+
+    def add_sink(self, factory:  type[_step.PipelineStep], *, filename: str) -> PipelineStepHandle:
+        handle = self.add_step(factory)
+        self._outputs.add(handle)
+        self._output_files[handle] = filename
+        return handle
+
+    def add_step(self, factory: type[_step.PipelineStep]) -> PipelineStepHandle:
+        handle = PipelineStepHandle(len(self._steps))
+        self._steps[handle] = factory
+        return handle
+
+    def connect(self, source: PipelineStepHandle, sink: PipelineStepHandle):
+        if source not in self._steps:
+            raise ValueError(f"Source step not found in pipeline {self._name}")
+        if sink not in self._steps:
+            raise ValueError(f"Sink step not found in pipeline {self._name}")
+        if sink in self._connections[source]:
+            raise ValueError(f"Connection already exists between {source} and {sink}")
+        if sink in self._inputs:
+            raise ValueError(f"Cannot use an input step as sink")
+        if sink in self._connections[source]:
+            raise ValueError(f"Cannot have multiple connections between source and sink")
+        if source == sink:
+            raise ValueError(f"Cannot connect a step to itself")
+        if not self._steps[sink].supports_step_as_input(source):
+            raise ValueError(f"Cannot connect {source} to {sink}")
+        self._connections[source].add(sink)
+
+    def build(self):
+        self._check_source_sink_constraints()
+        self._check_reachability_constraints()
+        self._check_cycle_constraints()
+        instructions = self._build_execution_plan()
+        return ExecutionPlan(
+            name=self._name,
+            directory=self._name,
+            instructions=instructions,
+            output_steps=frozenset(self._outputs),
+            output_files=self._output_files
+        )
+
+    def _build_execution_plan(self) -> list[Instruction]:
+        dependencies_per_step = collections.defaultdict(set)
+        for source, connections in self._connections.items():
+            for sink in connections:
+                dependencies_per_step[sink].add(source)
+        plan_per_dependency_group = collections.defaultdict(set)
+        instructions = []
+        for handle in self._inputs:
+            instructions.append(Start(handle, self._steps[handle]))
+        for handle, dependencies in dependencies_per_step.items():
+            if dependencies:
+                key = tuple(sorted(dependencies, key=lambda h: h.get_raw_identifier()))
+                plan_per_dependency_group[key].add(handle)
+        for requirements, handles in plan_per_dependency_group.items():
+            instructions.append(
+                Sync(
+                    list(requirements),
+                    [Start(handle, self._steps[handle]) for handle in handles]
+                )
+            )
+        return instructions
+
+    def _check_source_sink_constraints(self):
+        for handle in self._steps:
+            cond = (
+                    handle in self._inputs
+                    or handle in self._outputs
+                    or (self._is_source(handle) and self._is_sink(handle))
+            )
+            if not cond:
+                raise ValueError('Found non-boundary step which has not both a source and a sink')
+        for handle in self._inputs:
+            if handle not in self._connections and handle not in self._outputs:
+                raise ValueError('Found input step without any connections')
+        for handle in self._outputs:
+            if not self._is_sink(handle) and handle not in self._inputs:
+                raise ValueError('Found output step without any connections')
+
+    def _check_reachability_constraints(self):
+        reachable = set()
+        stack = list(self._inputs)
+        while stack:
+            handle = stack.pop()
+            if handle not in reachable:
+                reachable.add(handle)
+                stack.extend(self._connections[handle])
+        remainder = set(self._steps.keys()) - reachable
+        if remainder:
+            raise ValueError('Found unreachable steps')
+
+    def _check_cycle_constraints(self):
+        sorter = graphlib.TopologicalSorter(self._connections)
+        try:
+            sorter.static_order()
+        except graphlib.CycleError:
+            raise ValueError('Found cycle in pipeline')
+
+    def _is_sink(self, handle: PipelineStepHandle):
+        return any(handle in sinks for sinks in self._connections.values())
+
+    def _is_source(self, handle: PipelineStepHandle):
+        return handle in self._connections
+
+
+
