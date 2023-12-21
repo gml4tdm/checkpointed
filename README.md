@@ -1,4 +1,4 @@
-# Pypelined - A library for management of nonlinear processing pipelines.
+# Pypelines - A library for management of nonlinear processing pipelines.
 
 ---
 
@@ -10,10 +10,10 @@ to maintain checkpoints for every performed operation.
 
 ---
 
-## Example 
+## Example
 
 ```python 
-from pypelined import Pipeline, NoopStep
+from pypelines import Pipeline, NoopStep
 
 pipeline = Pipeline('example-pipeline')
 
@@ -56,6 +56,7 @@ config = {
 
 # (optional) setup a logger 
 import logging
+
 logger = logging.getLogger('example-pipeline')
 logger.addHandler(logging.StreamHandler())
 
@@ -64,15 +65,15 @@ plan.execute(
     # Configuration used to instantiate the steps in the pipeline.
     # Must have one entry for every step.
     config_by_step=config,
-    
+
     # Store `input-2-output.txt' and `out-5-output.txt' 
     # in directory ./out/example-pipeline
-    output_directory='out',                
-    
+    output_directory='out',
+
     # Store checkpoints for every pipeline step 
     # in directory ./checkpoints/example-pipeline
     checkpoint_directory='checkpoints',
-    
+
     # Pass in a logger object in order to enable logging.
     logger=logger
 )
