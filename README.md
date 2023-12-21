@@ -10,7 +10,7 @@ to maintain checkpoints for every performed operation.
 
 ---
 
-## Example
+## Examples
 
 ```python 
 from checkpointed import Pipeline, NoopStep
@@ -78,4 +78,57 @@ plan.execute(
     logger=logger
 )
 ```
+With some actual arguments applied:
+
+```python 
+from checkpointed import Pipeline, NoopStep
+
+pipeline = Pipeline('example-pipeline')
+
+node = pipeline.add_source(NoopStep, is_sink=True, filename='out.txt')
+
+plan = pipeline.build()
+
+import logging
+
+logger = logging.getLogger('example-pipeline')
+logger.addHandler(logging.StreamHandler())
+
+plan.execute(
+    config_by_step={
+        node: {'echo-io': True}
+    },
+    output_directory='out',
+    checkpoint_directory='checkpoints',
+    logger=logger
+)
+```
+
+You will get an error on an invalid argument:
+
+```python 
+from checkpointed import Pipeline, NoopStep
+
+pipeline = Pipeline('example-pipeline')
+
+node = pipeline.add_source(NoopStep, is_sink=True, filename='out.txt')
+
+plan = pipeline.build()
+
+import logging
+
+logger = logging.getLogger('example-pipeline')
+logger.addHandler(logging.StreamHandler())
+
+plan.execute(
+    config_by_step={
+        node: {'echo-execute': True, 'echo-io': False}
+    },
+    output_directory='out',
+    checkpoint_directory='checkpoints',
+    logger=logger
+)
+```
+
+
 

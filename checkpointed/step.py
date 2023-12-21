@@ -3,11 +3,15 @@ from __future__ import annotations
 import abc
 import typing
 
+from . import arg_spec
+from .arg_spec import arguments
+from .arg_spec.constraints import Constraint
 
-class PipelineStep(abc.ABC):
+
+class PipelineStep(arg_spec.ArgumentConsumer, abc.ABC):
 
     def __init__(self, config):
-        self.config = config
+        self.config = self.validate_arguments(config)
 
     @classmethod
     @abc.abstractmethod
@@ -36,7 +40,10 @@ class NoopStep(PipelineStep):
         return True
 
     async def execute(self, *_):
-        pass
+        if self.config['echo-execute']:
+            print('Executing')
+        if self.config['echo-io']:
+            print('Saving (not actually) ;P')
 
     @staticmethod
     def save_result(path: str, result: typing.Any):
@@ -45,3 +52,36 @@ class NoopStep(PipelineStep):
     @staticmethod
     def load_result(path: str):
         pass
+
+    @classmethod
+    def get_arguments(cls) -> dict[str, arguments.Argument]:
+        return {
+            'echo-execute': arg_spec.arguments.BoolArgument(
+                name='echo-execute',
+                description='If True, print messages to stdout when .execute is called. Implies echo-io == True',
+                default=False
+            ),
+            'echo-io': arg_spec.arguments.BoolArgument(
+                name='echo-io',
+                description='If True, print messages to stdout when normally I/O would be performed',
+                default=False
+            )
+        }
+
+    @classmethod
+    def get_constraints(cls) -> list[Constraint]:
+        return [
+            arg_spec.constraints.Forbids(
+                main=arg_spec.constraints.Equal(
+                    arg_spec.constraints.ArgumentRef('echo-execute'),
+                    arg_spec.constraints.Constant(True)
+                ),
+                forbids=[
+                    arg_spec.constraints.Equal(
+                        arg_spec.constraints.ArgumentRef('echo-io'),
+                        arg_spec.constraints.Constant(False)
+                    )
+                ],
+                message='echo-io must be True if echo-execute is True.'
+            )
+        ]
