@@ -1,10 +1,10 @@
-# Pypelines - A library for management of nonlinear processing pipelines.
+# Checkpointed - A library for management of nonlinear processing pipelines.
 
 ---
 
 ## Introduction
 
-The Pypelined library provides a small interface for chaining pipelines of 
+The Checkpointed library provides a small interface for chaining pipelines of 
 different operations. The main functionality of the library is the ability 
 to maintain checkpoints for every performed operation.
 
@@ -13,7 +13,7 @@ to maintain checkpoints for every performed operation.
 ## Example
 
 ```python 
-from pypelines import Pipeline, NoopStep
+from checkpointed import Pipeline, NoopStep
 
 pipeline = Pipeline('example-pipeline')
 

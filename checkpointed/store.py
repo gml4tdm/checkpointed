@@ -1,8 +1,8 @@
 import os
 import typing
 
-from pypelines.handle import PipelineStepHandle
-from pypelines.step import PipelineStep
+from checkpointed.handle import PipelineStepHandle
+from checkpointed.step import PipelineStep
 
 
 class ResultStore:
