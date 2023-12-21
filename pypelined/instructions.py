@@ -10,9 +10,13 @@ class Instruction:
 
 class Start(Instruction):
 
-    def __init__(self, step: PipelineStepHandle, factory: type[PipelineStep]):
+    def __init__(self,
+                 step: PipelineStepHandle,
+                 factory: type[PipelineStep],
+                 inputs: list[tuple[PipelineStepHandle, type[PipelineStep]]]):
         self.step = step
         self.factory = factory
+        self.inputs = inputs
 
 
 class Sync(Instruction):

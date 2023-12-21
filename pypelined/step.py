@@ -6,13 +6,16 @@ import typing
 
 class PipelineStep(abc.ABC):
 
+    def __init__(self, config):
+        self.config = config
+
     @classmethod
     @abc.abstractmethod
     def supports_step_as_input(cls, step: type[PipelineStep]) -> bool:
         pass
 
     @abc.abstractmethod
-    def execute(self, input_data):
+    async def execute(self, *inputs) -> typing.Any:
         pass
 
     @staticmethod
@@ -22,7 +25,7 @@ class PipelineStep(abc.ABC):
 
     @staticmethod
     @abc.abstractmethod
-    def load_result(path: str, result: typing.Any):
+    def load_result(path: str):
         pass
 
 
@@ -32,7 +35,7 @@ class NoopStep(PipelineStep):
     def supports_step_as_input(cls, step: type[PipelineStep]) -> bool:
         return True
 
-    def execute(self, input_data):
+    async def execute(self, *_):
         pass
 
     @staticmethod
@@ -40,5 +43,5 @@ class NoopStep(PipelineStep):
         pass
 
     @staticmethod
-    def load_result(path: str, result: typing.Any):
+    def load_result(path: str):
         pass
