@@ -1,7 +1,6 @@
 import asyncio
 import logging
 
-from .checkpoints import CheckpointGraph
 from .handle import PipelineStepHandle
 from .instructions import Instruction, Start, Sync
 from .store import ResultStore
@@ -40,7 +39,6 @@ class TaskExecutor:
             for data in done:
                 result, handle, factory = data.result()
                 logger.info(f'Task {handle} finished')
-                result_store.store(handle, factory, result)
                 self._done.add(handle)
 
     def _unblock_tasks(self, logger: logging.Logger):
