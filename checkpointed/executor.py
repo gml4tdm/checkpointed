@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+from .checkpoints import CheckpointGraph
 from .handle import PipelineStepHandle
 from .instructions import Instruction, Start, Sync
 from .store import ResultStore
@@ -65,7 +66,14 @@ class TaskExecutor:
                               _factory=task.factory,
                               _instance=instance,
                               _inputs=tuple(args)):
-                result = await _instance.execute(*_inputs)
+                if result_store.have_checkpoint_for(_handle):
+                    result = result_store.retrieve(_handle, _factory)
+                else:
+                    result = await _instance.execute(*_inputs)
+                    result_store.store(_handle,
+                                       _factory,
+                                       result,
+                                       _instance.get_checkpoint_metadata())
                 return result, _handle, _factory
 
             self._active.add(asyncio.Task(wrapper(), loop=self._loop))

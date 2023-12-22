@@ -2,8 +2,11 @@ from __future__ import annotations
 import collections
 import graphlib
 import itertools
+import logging
+import typing
 
 from . import step as _step
+from .checkpoints import CheckpointGraph
 from .handle import PipelineStepHandle
 from .instructions import Instruction, Start, Sync
 from .plan import ExecutionPlan
@@ -72,7 +75,9 @@ class Pipeline:
             raise ValueError(f"Cannot connect {source} to {sink}")
         self._connections[source].append(sink)
 
-    def build(self):
+    def build(self,
+              config_by_step: dict[PipelineStepHandle, dict[str, typing.Any]], *,
+              logger: logging.Logger | None = None):
         self._check_source_sink_constraints()
         self._check_reachability_constraints()
         self._check_cycle_constraints()
@@ -82,7 +87,17 @@ class Pipeline:
             directory=self._name,
             instructions=instructions,
             output_steps=frozenset(self._outputs),
-            output_files=self._output_files
+            output_files=self._output_files,
+            config_by_step=config_by_step,
+            logger=logger,
+            graph=CheckpointGraph(
+                inputs=self._inputs,
+                vertices=set(self._steps),
+                connections=self._connections,
+                factories=self._steps,
+                config_by_step=config_by_step,
+                logger=logger
+            )
         )
 
     def _build_execution_plan(self) -> list[Instruction]:

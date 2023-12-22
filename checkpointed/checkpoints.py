@@ -5,12 +5,8 @@ import itertools
 import logging
 import typing
 
-from checkpointed import PipelineStep
-from checkpointed.handle import PipelineStepHandle
-
-
-class CheckpointManager:
-    pass
+from .step import PipelineStep
+from .handle import PipelineStepHandle
 
 
 class CheckpointGraph:
@@ -58,7 +54,7 @@ class CheckpointGraph:
         self._logger.debug(' * Connections: {}', self.connections)
         self._logger.debug(' * Configs: {}', self.config_by_step)
 
-    def get_largest_isomorphic_prefix(self, other: CheckpointGraph):
+    def get_largest_isomorphic_prefix(self, other: CheckpointGraph) -> dict[PipelineStepHandle, PipelineStepHandle]:
         """Starting from all input nodes, determine all nodes that
         have equivalent nodes in the other graph.
         Here, equivalent means that:
@@ -96,7 +92,10 @@ class CheckpointGraph:
             # in the largest amount of cached steps.
             mapping = self._compute_cacheable_steps(lineup, other)
             best = max(best, mapping, key=len)
-        return best
+        # Return a dictionary containing all steps which can be
+        # cached, and mapping them to their handles in the
+        # old graph.
+        return dict(best)
 
     def _generate_equivalent_vertices(self, other: CheckpointGraph):
         # First, for every node, collect a set of all possible
@@ -118,7 +117,7 @@ class CheckpointGraph:
 
     def _compute_cacheable_steps(self,
                                  lineup: list[tuple[PipelineStepHandle, PipelineStepHandle]],
-                                 other: CheckpointGraph) -> int:
+                                 other: CheckpointGraph) -> set[tuple[PipelineStepHandle, PipelineStepHandle]]:
         cacheable = {
             (x, y)
             for x, y in lineup
