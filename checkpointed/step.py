@@ -32,6 +32,20 @@ class PipelineStep(arg_spec.ArgumentConsumer, abc.ABC):
     def load_result(path: str):
         pass
 
+    @staticmethod
+    @abc.abstractmethod
+    def is_deterministic() -> bool:
+        pass
+
+    @abc.abstractmethod
+    def get_checkpoint_metadata(self) -> typing.Any:
+        pass
+
+    @abc.abstractmethod
+    def checkpoint_is_valid(self, metadata: typing.Any) -> bool:
+        pass
+
+
 
 class NoopStep(PipelineStep):
 
@@ -85,3 +99,13 @@ class NoopStep(PipelineStep):
                 message='echo-io must be True if echo-execute is True.'
             )
         ]
+
+    @staticmethod
+    def is_deterministic() -> bool:
+        return True
+
+    def get_checkpoint_metadata(self) -> typing.Any:
+        return None
+
+    def checkpoint_is_valid(self, _) -> bool:
+        return True
