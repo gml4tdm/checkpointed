@@ -68,7 +68,6 @@ class DynamicObject(_SchemaBase):
                                       'Expected an object')
 
 
-
 class FixedObject(_SchemaBase):
 
     def __init__(self, optional=None, /, **fields: JSONSchema):
@@ -133,7 +132,7 @@ class Array(_SchemaBase):
                 self.item_type.validate(item)
             except SchemaValueMismatch as inner:
                 raise SchemaValueMismatch(
-                    self.serialize(), o,'Validation failure in descendant value'
+                    self.serialize(), o, 'Validation failure in descendant value'
                 ) from inner
 
 
@@ -268,6 +267,7 @@ class Optional(_SchemaBase):
                     self.serialize(), o, 'Validation failure in descendant value'
                 ) from inner
 
+
 class Null(_SchemaBase):
 
     def serialize(self) -> object:
@@ -297,4 +297,4 @@ Object = FixedObject | DynamicObject
 IntLike = Integer | Boolean
 Numeric = Integer | Float
 Value = IntLike | Float | Boolean | String | Null
-JSONSchema = FixedObject | Array | Value | Optional | Choice
+JSONSchema = Object | Array | Value | Optional | Choice | Any

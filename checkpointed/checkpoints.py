@@ -42,17 +42,17 @@ class CheckpointGraph:
     def _log_graphs(self, other: CheckpointGraph):
         self._logger.debug('Computing cacheable nodes...')
         self._logger.debug('Old graph description:')
-        self._logger.debug(' * Inputs: {}', other.inputs)
-        self._logger.debug(' * Vertices: {}', other.vertices)
-        self._logger.debug(' * Factories: {}', other.factories)
-        self._logger.debug(' * Connections: {}', other.connections)
-        self._logger.debug(' * Configs: {}', other.config_by_step)
+        self._log_graph_properties(self, self._logger)
         self._logger.debug('New graph description:')
-        self._logger.debug(' * Inputs: {}', self.inputs)
-        self._logger.debug(' * Vertices: {}', self.vertices)
-        self._logger.debug(' * Factories: {}', self.factories)
-        self._logger.debug(' * Connections: {}', self.connections)
-        self._logger.debug(' * Configs: {}', self.config_by_step)
+        self._log_graph_properties(other, self._logger)
+
+    @staticmethod
+    def _log_graph_properties(graph: CheckpointGraph, logger: logging.Logger):
+        logger.debug(' * Inputs: {}', graph.inputs)
+        logger.debug(' * Vertices: {}', graph.vertices)
+        logger.debug(' * Factories: {}', graph.factories)
+        logger.debug(' * Connections: {}', graph.connections)
+        logger.debug(' * Configs: {}', graph.config_by_step)
 
     def get_largest_isomorphic_prefix(self, other: CheckpointGraph) -> dict[PipelineStepHandle, PipelineStepHandle]:
         """Starting from all input nodes, determine all nodes that

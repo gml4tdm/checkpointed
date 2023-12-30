@@ -46,7 +46,6 @@ class PipelineStep(arg_spec.ArgumentConsumer, abc.ABC):
         pass
 
 
-
 class NoopStep(PipelineStep):
 
     @classmethod

@@ -94,10 +94,9 @@ class Argument(abc.ABC):
 
 class ListArgument(Argument):
 
-    def __init__(self,
-                *,
-                default=Argument._NOT_SET,
-                inner: Argument):
+    def __init__(self, *,
+                 default=Argument._NOT_SET,
+                 inner: Argument):
         super().__init__(inner.argument_name,
                          f'{inner.argument_description} (multi-valued)',
                          list,
@@ -121,7 +120,6 @@ class ListArgument(Argument):
     @staticmethod
     def supported_hyper_param_specs():
         return ['values']
-
 
 
 class FloatArgument(Argument):
@@ -298,7 +296,6 @@ class JSONArgument(Argument):
                  enabled_if: constraints.ValueExpression | None = None):
         super().__init__(name, description, object, default, enabled_if=enabled_if)
         self._schema = schema
-
 
     def validate(self, value, *, tuning=False):
         try:

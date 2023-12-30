@@ -60,7 +60,7 @@ class ResultStore:
             for new, old in mapping.items()
         }
         self._delete_old_checkpoints(keep=set(filename_mapping.values()))
-        # Rename files in two step to prevent overwriting files
+        # Rename files in two-step to prevent overwriting files
         for new, old in filename_mapping.items():
             os.rename(old, new + '_temp')
         for new, old in filename_mapping.items():
@@ -68,7 +68,7 @@ class ResultStore:
 
     def _delete_old_checkpoints(self, keep: set[str]):
         for file_list in [self._get_metadata_files(), self._get_checkpoint_files()]:
-            for file in self._get_metadata_files():
+            for file in file_list:
                 path, filename = os.path.split(file)
                 if filename not in keep:
                     os.remove(file)
