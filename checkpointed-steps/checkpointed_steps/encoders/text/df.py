@@ -5,7 +5,8 @@ from checkpointed_core import PipelineStep
 from checkpointed_core.arg_spec import constraints, arguments
 
 
-class LdaAnalysis(checkpointed_core.PipelineStep):
+class DocumentFrequency(checkpointed_core.PipelineStep):
+
 
     @classmethod
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
@@ -24,18 +25,18 @@ class LdaAnalysis(checkpointed_core.PipelineStep):
 
     @staticmethod
     def is_deterministic() -> bool:
-        return False
+        pass
 
     def get_checkpoint_metadata(self) -> typing.Any:
-        return {}
+        pass
 
     def checkpoint_is_valid(self, metadata: typing.Any) -> bool:
-        return True
+        pass
 
     @classmethod
     def get_arguments(cls) -> dict[str, arguments.Argument]:
-        return {}
+        pass
 
     @classmethod
     def get_constraints(cls) -> list[constraints.Constraint]:
-        return []
+        pass

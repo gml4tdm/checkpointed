@@ -15,5 +15,6 @@ dependencies = [
     "pandas",
     "gensim",
     "numpy",
-    "nltk"
+    "nltk",
+    "contractions"
 ]

@@ -1,30 +1,43 @@
+import pickle
+import string
 import typing
 
 import checkpointed_core
 from checkpointed_core import PipelineStep
 from checkpointed_core.arg_spec import constraints, arguments
 
+from ... import bases
 
-class LdaAnalysis(checkpointed_core.PipelineStep):
+
+class RemovePunctuation(checkpointed_core.PipelineStep, bases.TokenizedDocumentSource):
 
     @classmethod
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        pass
+        if label == 'documents':
+            return issubclass(step, bases.TokenizedDocumentSource)
+        return super(cls, cls).supports_step_as_input(step, label)
 
     async def execute(self, **inputs) -> typing.Any:
-        pass
+        table = str.maketrans({p: '' for p in string.punctuation})
+        documents = inputs['documents']
+        return [
+            [[word.translate(table) for word in sent] for sent in document]
+            for document in documents
+        ]
 
     @staticmethod
     def save_result(path: str, result: typing.Any):
-        pass
+        with open(path, 'wb') as file:
+            pickle.dump(result, file)
 
     @staticmethod
     def load_result(path: str):
-        pass
+        with open(path, 'rb') as file:
+            return pickle.load(file)
 
     @staticmethod
     def is_deterministic() -> bool:
-        return False
+        return True
 
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}
