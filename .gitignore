@@ -4,3 +4,4 @@ dist
 checkpointed.egg-info
 
 *.pyc
+*.csv
