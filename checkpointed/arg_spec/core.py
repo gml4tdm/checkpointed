@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import copy
+import typing
+
 
 class NoSuchSetting(LookupError):
     def __init__(self, attribute, action):
@@ -7,17 +10,21 @@ class NoSuchSetting(LookupError):
             f"Cannot perform action {action!r} on setting "
             f"{attribute!r} since it does not exist"
         )
+        self.attribute = attribute
+        self.action = action
         super().__init__(message)
 
 
 class NotSet(Exception):
     def __init__(self, attribute):
+        self.attribute = attribute
         message = f"Attribute {attribute!r} has not been initialized"
         super().__init__(message)
 
 
 class IllegalNamespace(Exception):
     def __init__(self, attribute):
+        self.attribute = attribute
         message = f"The namespace containing {attribute!r} is currently not accessible"
         super().__init__(message)
 
@@ -72,17 +79,45 @@ class ConfigFactory:
             raise ValueError(
                 f"A property must be contained in the non-global namespace ({name})"
             )
-        current = self._namespace
-        for part in parts[:-1]:
-            if part not in current:
-                raise ValueError(
-                    f"Cannot register property {name}; namespace does not exist"
-                )
-            current = current[part]
-        current[parts[-1]] = None
+        prop_name = parts[-1]
+        target = self._resolve_property_namespace(parts[:-1], prop_name, name)
+        target[prop_name] = None
+
+    def mount_sub_config(self, path: str, other: ConfigFactory):
+        parts = self._normalize_name(path).split(".")
+        target = self._resolve_property_namespace(parts[:-1], parts[-1], path)
+        target[parts[-1]] = copy.deepcopy(other._namespace)
 
     def build_config(self, *namespaces) -> Config:
         return Config(*self._prepare_config(*namespaces))
+
+    def _resolve_property_namespace(self,
+                                    location: list[str],
+                                    prop_name: str,
+                                    full_path: str):
+        target = self._resolve_parent_namespace(location, full_path)
+        if prop_name in target and target[prop_name] is not None:
+            raise ValueError(
+                f"Cannot register property {full_path}; already defined as a namespace"
+            )
+        if prop_name in target:
+            raise ValueError(
+                f"Cannot register property {full_path}; property already exists"
+            )
+        return target
+
+    def _resolve_parent_namespace(self,
+                                  location: list[str],
+                                  full_path: str) -> dict[str, dict | None]:
+        current = self._namespace
+        for part in location:
+            try:
+                current = current[part]
+            except KeyError:
+                raise ValueError(f'Undefined namespace: {part} (in {full_path})')
+            if current is None:
+                raise ValueError(f'Path component is a property: {part} (in {full_path})')
+        return current
 
     def _build_dict_config(self, namespace) -> _ConfigDictProxy:
         return _ConfigDictProxy(*self._prepare_config(namespace), prefix=namespace)
@@ -100,6 +135,9 @@ class ConfigFactory:
         if obj is None:
             return Config.NOT_SET
         return {key: self._new_namespace_tree(value) for key, value in obj.items()}
+
+
+T = typing.TypeVar('T')
 
 
 class Config:
@@ -135,7 +173,7 @@ class Config:
             ).items()
         }
 
-    def get(self, name: str):
+    def get(self, name: str) -> typing.Any:
         *path, prop = self._normalize_name(name)
         namespace = self._resolve(name, "get", path)
         if prop not in namespace:
@@ -145,7 +183,12 @@ class Config:
             raise NotSet(name)
         return value
 
-    def set(self, name: str, value):
+    def get_casted(self, name: str, typ: type[T]) -> T:
+        value = self.get(name)
+        assert isinstance(value, typ), f'Type mismatch: {value.__class__.__name__} != {typ.__name__}'
+        return value
+
+    def set(self, name: str, value: typing.Any):
         *path, prop = self._normalize_name(name)
         namespace = self._resolve(name, "set", path)
         if prop not in namespace:

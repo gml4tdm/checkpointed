@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import abc
+import graphlib
+import logging
 import re
-
-from .constraints import Constraint
-
+import typing
 
 from . import core
 from .errors import ArgumentParsingError
@@ -13,10 +13,14 @@ from . import constraints
 
 
 class Argument(abc.ABC):
+
     _NOT_SET = object()
 
     def __init__(self,
-                 name: str, description: str, data_type, default=_NOT_SET, *,
+                 name: str,
+                 description: str,
+                 data_type,
+                 default=_NOT_SET, *,
                  enabled_if: constraints.ValueExpression | None = None):
         self._name = name
         self._description = description
@@ -53,11 +57,7 @@ class Argument(abc.ABC):
         return self.enabled_if is None or self.enabled_if.evaluate(conf)
 
     @abc.abstractmethod
-    def validate(self, value, *, tuning=False):
-        pass
-
-    @abc.abstractmethod
-    def legal_values(self):
+    def validate(self, value):
         pass
 
     @abc.abstractmethod
@@ -78,15 +78,8 @@ class Argument(abc.ABC):
             'argument_type': arg_type,
             "has-default": self.has_default,
             "default": self._default if self.has_default else None,
-            "readable-options": self.legal_values(),
-            "supported-hyper-param-specs": self.supported_hyper_param_specs(),
             'enabled-if': self.enabled_if.to_json() if self.enabled_if is not None else None
         }
-
-    @staticmethod
-    @abc.abstractmethod
-    def supported_hyper_param_specs():
-        return []
 
     def raise_invalid(self, msg):
         raise ArgumentParsingError(f"Argument {self.argument_name!r} is invalid: {msg}")
@@ -104,97 +97,65 @@ class ListArgument(Argument):
                          enabled_if=inner.enabled_if)
         self._inner = inner
 
-    def validate(self, value, *, tuning=False):
+    def validate(self, value):
         if not isinstance(value, list):
             self.raise_invalid(f'Expected a list of values')
-        return [self._inner.validate(x, tuning=tuning) for x in value]
+        return [self._inner.validate(x) for x in value]
 
     def get_json_spec(self):
         return super().get_json_spec() | {
             'inner': self._inner.get_json_spec()
         }
 
-    def legal_values(self):
-        return self._inner.legal_values()
 
-    @staticmethod
-    def supported_hyper_param_specs():
-        return ['values']
+class _NumericalArgument(Argument, abc.ABC):
 
-
-class FloatArgument(Argument):
-    def __init__(
-        self,
-        name: str,
-        description: str,
-        default=Argument._NOT_SET,
-        minimum: float | None = None,
-        maximum: float | None = None, *,
-        enabled_if: constraints.ValueExpression | None = None
-    ):
-        super().__init__(name, description, float, default, enabled_if=enabled_if)
+    def __init__(self,
+                 name: str,
+                 description: str,
+                 default=Argument._NOT_SET,
+                 minimum: float | None = None,
+                 maximum: float | None = None, *,
+                 enabled_if: constraints.ValueExpression | None = None):
+        super().__init__(name, description, self._get_data_type(), default, enabled_if=enabled_if)
         self._min = minimum
         self._max = maximum
 
-    def validate(self, value, *, tuning=False):
-        if not isinstance(value, float):
-            self.raise_invalid(f"Must be float, got {value.__class__.__name__}")
+    @staticmethod
+    @abc.abstractmethod
+    def _get_data_type():
+        pass
+
+    def validate(self, value):
+        if not isinstance(value, self._get_data_type()):
+            self.raise_invalid(f"Must be {self._get_data_type().__name__}, "
+                               f"got {value.__class__.__name__}")
         if self._min is not None and value < self._min:
             self.raise_invalid(f"Must be >= {self._min}")
         if self._max is not None and value > self._max:
             self.raise_invalid(f"Must be <= {self._max}")
         return value
 
-    def legal_values(self):
-        lo = self._min if self._min is not None else -float("inf")
-        hi = self._max if self._max is not None else float("inf")
-        return f"[{lo}, {hi}]"
-
     def get_json_spec(self):
         return super().get_json_spec() | {"minimum": self._min, "maximum": self._max}
 
-    @staticmethod
-    def supported_hyper_param_specs():
-        return ["values", "floats"]
 
-
-class IntArgument(Argument):
-    def __init__(
-        self,
-        name: str,
-        description: str,
-        default=Argument._NOT_SET,
-        minimum: int | None = None,
-        maximum: int | None = None, *,
-        enabled_if: constraints.ValueExpression | None = None
-    ):
-        super().__init__(name, description, int, default, enabled_if=enabled_if)
-        self._min = minimum
-        self._max = maximum
-
-    def validate(self, value, *, tuning=False):
-        if not isinstance(value, int):
-            self.raise_invalid(f"Must be int, got {value.__class__.__name__}")
-        if self._min is not None and value < self._min:
-            self.raise_invalid(f"Must be >= {self._min}")
-        if self._max is not None and value > self._max:
-            self.raise_invalid(f"Must be <= {self._max}")
-        return value
-
-    def legal_values(self):
-        lo = self._min if self._min is not None else -float("inf")
-        hi = self._max if self._max is not None else float("inf")
-        return f"[{lo}, {hi}]"
-
-    def get_json_spec(self):
-        return super().get_json_spec() | {"minimum": self._min, "maximum": self._max}
+class FloatArgument(_NumericalArgument):
 
     @staticmethod
-    def supported_hyper_param_specs():
-        return ["values", "range"]
+    def _get_data_type():
+        return float
+
+
+class IntArgument(_NumericalArgument):
+
+    @staticmethod
+    def _get_data_type():
+        return int
 
 
 class EnumArgument(Argument):
+
     def __init__(
         self,
         name: str,
@@ -209,22 +170,15 @@ class EnumArgument(Argument):
         else:
             self._options = options
 
-    def validate(self, value, *, tuning=False):
+    def validate(self, value):
         if not isinstance(value, str):
             self.raise_invalid(f"Must be string, got {value.__class__.__name__}")
         if value not in self._options:
             self.raise_invalid(f'Must be one of {", ".join(self._options)} (got {value})')
         return value
 
-    def legal_values(self):
-        return self._options
-
     def get_json_spec(self):
         return super().get_json_spec() | {"options": self._options}
-
-    @staticmethod
-    def supported_hyper_param_specs():
-        return ["values"]
 
 
 class DynamicEnumArgument(EnumArgument):
@@ -246,20 +200,13 @@ class BoolArgument(Argument):
                  enabled_if: constraints.ValueExpression | None = None):
         super().__init__(name, description, bool, default, enabled_if=enabled_if)
 
-    def validate(self, value, *, tuning=False):
+    def validate(self, value):
         if isinstance(value, bool) or (isinstance(value, int) and value in (0, 1)):
             return value
         self.raise_invalid(f"Must be Boolean, got {value.__class__.__name__}")
 
-    def legal_values(self):
-        return [False, True]
-
     def get_json_spec(self):
         return super().get_json_spec() | {}
-
-    @staticmethod
-    def supported_hyper_param_specs():
-        return ["values"]
 
 
 class StringArgument(Argument):
@@ -270,20 +217,13 @@ class StringArgument(Argument):
                  enabled_if: constraints.ValueExpression | None = None):
         super().__init__(name, description, str, default, enabled_if=enabled_if)
 
-    def validate(self, value, *, tuning=False):
+    def validate(self, value):
         if not isinstance(value, str):
             self.raise_invalid(f"Must be string, got {value.__class__.__name__}")
         return value
 
-    def legal_values(self):
-        return "Any"
-
     def get_json_spec(self):
         return super().get_json_spec() | {}
-
-    @staticmethod
-    def supported_hyper_param_specs():
-        return ["values"]
 
 
 class JSONArgument(Argument):
@@ -297,87 +237,167 @@ class JSONArgument(Argument):
         super().__init__(name, description, object, default, enabled_if=enabled_if)
         self._schema = schema
 
-    def validate(self, value, *, tuning=False):
+    def validate(self, value):
         try:
             self._schema.validate(value)
         except schemas.SchemaValueMismatch as e:
             self.raise_invalid(f'Value {value} does not match schema: {e}')
         return value
 
-    def legal_values(self):
-        return self._schema.serialize()
-
     def get_json_spec(self):
         super().get_json_spec() | {
             'schema': self._schema.serialize()
         }
 
-    @staticmethod
-    def supported_hyper_param_specs():
-        return ['values']
 
+class NestedArgumentGroup(Argument):
 
-class NestedArgument(Argument):
-
-    def __init__(self,
+    def __init__(self, *,
                  name: str,
-                 description: str, *,
-                 spec: dict[str, dict[str, Argument]],
-                 constraint_spec: dict[str, list[Constraint]] | None = None,
-                 tunable=False,
-                 multi_valued,
+                 description: str,
+                 nested: dict[str, Argument],
+                 constraint_items: list[constraints.Constraint],
                  enabled_if: constraints.ValueExpression | None = None):
-        # Check if all children have defaults
-        if all(x.has_default for cls in spec.values() for x in cls.values()):
-            default = {
-                key: [{k: v.default for k, v in value.items()}]
-                for key, value in spec.items()
-            }
+        if all(v.has_default for v in nested.values()):
+            default = {k: v.default for k, v in nested.items()}
         else:
             default = self._NOT_SET
-        super().__init__(name, description, dict, default=default, enabled_if=enabled_if)
-        self._tunable = tunable
-        self._raw_spec = spec
-        if constraint_spec is None:
-            constraint_spec = {}
-        self._raw_constraints = constraint_spec
-        self._multi_valued = multi_valued
-        self._spec = {
-            key: (value, [] if constraint_spec == {} else constraint_spec[key])
-            for key, value in spec.items()
-        }
-        self._parser = ArgumentListParser.from_spec_dict(
-            name, self._spec, multi_valued=self._multi_valued, tunable_arguments=False
+        super().__init__(
+            name, description, dict, default, enabled_if=enabled_if
         )
-        self._hyper_parser = ArgumentListParser.from_spec_dict(
-            name, self._spec, multi_valued=self._multi_valued, tunable_arguments=True
-        )
-
-    def validate(self, value, *, tuning=False):
-        try:
-            if tuning and self._tunable:
-                return self._hyper_parser.validate(value)
-            return self._parser.validate(value)
-        except ArgumentParsingError as e:
-            self.raise_invalid(e.message)
-
-    def legal_values(self):
-        return {}
+        self._nested = nested
+        self._constraints = constraint_items
+        self._config_factory = core.ConfigFactory()
+        for name, arg in self._nested.items():
+            if isinstance(arg, NestedArgumentGroup):
+                self._config_factory.mount_sub_config(f'{self.argument_name}.{name}', arg._config_factory)
+            else:
+                self._config_factory.register(f'{self.argument_name}.{name}')
 
     def get_json_spec(self):
         return super().get_json_spec() | {
-            'spec': {
-                key: {k: v.get_json_spec() for k, v in value.items()}
-                for key, value in self._raw_spec.items()
+            'nested': {
+                key: value.get_json_spec() for key, value in self._nested.items()
             },
-            'constraint-spec': {
-                key: [v.to_json() for v in value]
-                for key, value in self._raw_constraints.items()
-            },
-            'tunable': self._tunable,
-            'multi-valued': self._multi_valued
+            'constraints': [x.to_json() for x in self._constraints]
         }
 
+    def validate(self, value):
+        logger = logging.getLogger(self.__class__.__name__)
+        return self._validate_arguments(value, logger)
+
+    def validate_with_logging(self, value, logger: logging.Logger):
+        return self._validate_arguments(value, logger)
+
+    def _validate_arguments(self,
+                            params: dict[str, typing.Any],
+                            logger: logging.Logger | None = None) -> core.Config:
+        order, graph = self._check_arg_dependencies()
+        parsed = self._parse_args(params, order, graph, logger)
+        try:
+            self._impose_constraints(parsed)
+        except ArgumentParsingError as e:
+            logger.error(f'Constraint failure: {e}')
+            raise e
+        return parsed
+
+    def _check_arg_dependencies(self) -> tuple[list[str], dict[str, set[str]]]:
+        graph = {}
+        required = set()
+        for name, arg in self._nested.items():
+            graph[name] = set(arg.depends_on())
+            required |= set(arg.depends_on())
+        sorter = graphlib.TopologicalSorter(graph)
+        try:
+            return list(sorter.static_order()), graph
+        except graphlib.CycleError as e:
+            msg = 'Cannot parse arguments because of cycle in enabling conditions.'
+            raise Exception(msg) from e
+
+    def _parse_args(self,
+                    params: dict[str, typing.Any],
+                    order: list[str],
+                    graph: dict[str, set[str]],
+                    logger: logging.Logger) -> core.Config:
+        disabled = set()
+        result = {}
+        for name in order:
+            argument = self._nested[name]
+            logger.info(f'Parsing argument {name!r}')
+            disabled_for_argument = disabled & graph[name]
+            if disabled_for_argument:
+                logger.info(
+                    f'Skipping disabled argument: {name} '
+                    f'(disabled because {_fmt_list(disabled_for_argument)} is/are disabled)'
+                )
+                disabled.add(name)
+                continue
+            if not self._eval_is_enabled(argument, result, logger):
+                logger.info(f'Skipping disabled argument: {name}')
+                disabled.add(name)
+                continue
+            if name in params:
+                try:
+                    result[name] = argument.validate(params[name])
+                except ArgumentParsingError as e:
+                    logger.error(f'Error while parsing argument {name}: {e}')
+                    raise e
+            elif argument.has_default:
+                logger.info(f'Applying default for argument {name!r}')
+                result[name] = argument.default
+            else:
+                logger.error(f'Missing required argument {name!r}')
+                raise ArgumentParsingError(f'Missing required argument {name!r}')
+        if extra := params.keys() - result.keys():
+            formatted = ', '.join(sorted(extra))
+            logger.info(f'Got unknown arguments: {formatted}')
+            raise ArgumentParsingError(f'Got unknown arguments: {formatted}')
+        return self._build_final_config(result)
+
+    def _build_final_config(self, parsed: dict[str, typing.Any]) -> core.Config:
+        conf = self._config_factory.build_config(self.argument_name)
+        for k, v in parsed.items():
+            if isinstance(v, core.Config):
+                for prop_name, prop_value in v.get_all(k).items():
+                    conf.set(f'{self.argument_name}.{k}.{prop_name}', prop_value)
+            else:
+                conf.set(f'{self.argument_name}.{k}', v)
+        return conf
+
     @staticmethod
-    def supported_hyper_param_specs():
-        return ['nested']
+    def _eval_is_enabled(argument: Argument,
+                         parsed: dict[str, typing.Any],
+                         logger: logging.Logger) -> bool:
+        try:
+            is_enabled = argument.is_enabled(core.ConfigFactory.dict_config(parsed))
+        except core.NotSet as e:
+            message = f'Unexpected error: {e}'
+            logger.error(message)
+            raise RuntimeError(f'Unexpected error: {e}') from e
+        except core.NoSuchSetting as e:
+            message = (
+                f'Error while evaluating on/off status for argument {argument.argument_name}: '
+                f'Attempted to retrieve non-existent value {e.attribute}.'
+            )
+            logger.error(message)
+            raise ValueError(message) from e
+        except core.IllegalNamespace as e:
+            message = (
+                f'Error while evaluating on/off status for argument {argument.argument_name}: '
+                f'Invalid namespace access while accessing {e.attribute}.'
+            )
+            logger.error(message)
+            raise ValueError(message) from e
+        return is_enabled
+
+    def _impose_constraints(self, conf: core.Config):
+        for constraint in self._constraints:
+            if not constraint.impose(conf):
+                raise ArgumentParsingError(f'Constraint {constraint} failed')
+
+
+def _fmt_list(x: typing.Iterable[str]):
+    x = list(x)
+    if len(x) == 1:
+        return [x]
+    return ', '.join(x[:-1]) + f', and {x[-1]}'
