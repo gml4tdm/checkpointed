@@ -55,23 +55,23 @@ class TaskExecutor:
         while self._pending:
             task = self._pending.pop()
             logger.info(f"Starting pending task {task.step}")
-            args = []
-            for handle, factory in task.inputs:
-                logger.info(f'Loading input {handle} (type {factory.__name__}) for task {task.step}')
-                args.append(result_store.retrieve(handle, factory))
+            args = {}
+            for handle, factory, name in task.inputs:
+                logger.info(f'Loading input {name} ({handle}, type {factory.__name__}) for task {task.step}')
+                args[name] = result_store.retrieve(handle, factory)
             instance = task.factory(config_by_step[task.step])
 
             async def wrapper(_handle=task.step,
                               _factory=task.factory,
                               _instance=instance,
-                              _inputs=tuple(args)):
+                              _inputs=tuple(args.items())):
                 logger.info(f'[{_handle}] Running task')
                 if result_store.have_checkpoint_for(_handle):
                     logger.info(f'[{_handle}] Loading result from checkpoint')
                     result = result_store.retrieve(_handle, _factory)
                 else:
                     logger.info(f'[{_handle}] Executing step')
-                    result = await _instance.execute(*_inputs)
+                    result = await _instance.execute(**dict(_inputs))
                     logger.info(f'[{_handle}] Storing result')
                     result_store.store(_handle,
                                        _factory,

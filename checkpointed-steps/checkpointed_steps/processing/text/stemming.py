@@ -1,28 +1,32 @@
+import pickle
 import typing
+
+import nltk
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
 
 import checkpointed_core
 from checkpointed_core import PipelineStep
 from checkpointed_core.arg_spec import constraints, arguments
 
-import nltk.tokenize
-
 from ... import bases
 
-import pickle
 
-
-class Tokenize(checkpointed_core.PipelineStep, bases.TokenizedDocumentSource):
+class PorterStemming(checkpointed_core.PipelineStep, bases.TokenizedDocumentSource):
 
     @classmethod
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
         if label == 'documents':
-            return issubclass(step, bases.TextDocumentSource)
+            return issubclass(step, bases.TokenizedDocumentSource)
         return super(cls, cls).supports_step_as_input(step, label)
 
-    async def execute(self, **inputs) -> typing.Any:
+    async def execute(self, *inputs) -> typing.Any:
         documents = inputs['documents']
+        stemmer = nltk.stem.PorterStemmer()
         return [
-            [nltk.tokenize.word_tokenize(sent) for sent in nltk.tokenize.sent_tokenize(document)]
+            [[stemmer.stem(word) for word in sent] for sent in document]
             for document in documents
         ]
 

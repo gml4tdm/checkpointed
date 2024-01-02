@@ -3,10 +3,12 @@ __pycache__
 dist
 *.egg-info
 build
+venv
 
 # Testing stuff
 checkpoints
 out
+resources
 testing.py
 install.cmd 
 

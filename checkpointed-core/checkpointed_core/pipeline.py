@@ -24,6 +24,7 @@ class Pipeline:
         self._name = name
         self._steps: dict[PipelineStepHandle, type[_step.PipelineStep]] = {}
         self._connections = collections.defaultdict(list)
+        self._connections_types = {}
         self._inputs = set()
         self._outputs = set()
         self._output_files = {}
@@ -58,7 +59,7 @@ class Pipeline:
         self._steps[handle] = factory
         return handle
 
-    def connect(self, source: PipelineStepHandle, sink: PipelineStepHandle):
+    def connect(self, source: PipelineStepHandle, sink: PipelineStepHandle, label: str):
         if source not in self._steps:
             raise ValueError(f"Source step not found in pipeline {self._name}")
         if sink not in self._steps:
@@ -71,9 +72,10 @@ class Pipeline:
             raise ValueError(f"Cannot have multiple connections between source and sink")
         if source == sink:
             raise ValueError(f"Cannot connect a step to itself")
-        if not self._steps[sink].supports_step_as_input(self._steps[source]):
-            raise ValueError(f"Cannot connect {source} to {sink}")
+        if not self._steps[sink].supports_step_as_input(self._steps[source], label):
+            raise ValueError(f"Cannot connect {source} to {sink} (unsupported input)")
         self._connections[source].append(sink)
+        self._connections_types[(source, sink)] = label
 
     def build(self,
               config_by_step: dict[PipelineStepHandle, dict[str, typing.Any]], *,
@@ -112,8 +114,8 @@ class Pipeline:
                 Start(
                     handle,
                     self._steps[handle],
-                    #[(h, self._steps[h]) for h in self._connections[handle]]
-                    [(h, self._steps[h]) for h in dependencies_per_step[handle]]
+                    [(h, self._steps[h], self._connections_types[(h, handle)])
+                     for h in dependencies_per_step[handle]]
                 )
             )
         for handle, dependencies in dependencies_per_step.items():
@@ -128,8 +130,8 @@ class Pipeline:
                         Start(
                             handle,
                             self._steps[handle],
-                            #[(h, self._steps[h]) for h in self._connections[handle]]
-                            [(h, self._steps[h]) for h in dependencies_per_step[handle]]
+                            [(h, self._steps[h], self._connections_types[(h, handle)])
+                             for h in dependencies_per_step[handle]]
                         )
                         for handle in handles
                     ]

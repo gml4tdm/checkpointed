@@ -9,7 +9,9 @@ class CSVLoader(GenericFileLoader):
 
     async def execute(self, *inputs) -> typing.Any:
         assert len(inputs) == 0
-        return pandas.read_csv(self.config.get_casted('params.filename', str))
+        return pandas.read_csv(
+            self.config.get_casted('params.filename', str),
+        )
 
     @staticmethod
     def save_result(path: str, result: typing.Any):

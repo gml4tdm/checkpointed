@@ -13,7 +13,7 @@ class Start(Instruction):
     def __init__(self,
                  step: PipelineStepHandle,
                  factory: type[PipelineStep],
-                 inputs: list[tuple[PipelineStepHandle, type[PipelineStep]]]):
+                 inputs: list[tuple[PipelineStepHandle, type[PipelineStep], str]]):
         self.step = step
         self.factory = factory
         self.inputs = inputs

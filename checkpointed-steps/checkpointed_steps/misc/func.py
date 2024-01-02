@@ -72,12 +72,15 @@ def pipeline_step(*,
 class FunctionStepBase(checkpointed_core.PipelineStep, abc.ABC):
 
     @classmethod
-    def supports_step_as_input(cls, step: type[PipelineStep]) -> bool:
-        return getattr(cls, '$_supported_inputs')
+    def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
+        mapping = getattr(cls, '$_supported_inputs')
+        if label in mapping:
+            return step in mapping[label]
+        return super(cls, cls).supports_step_as_input(step, label)
 
-    async def execute(self, *inputs) -> typing.Any:
+    async def execute(self, **inputs) -> typing.Any:
         function = getattr(self, '$_function')
-        return function(*inputs, conf=self.config)
+        return function(self.config, **inputs)
 
     @classmethod
     def save_result(cls, path: str, result: typing.Any):

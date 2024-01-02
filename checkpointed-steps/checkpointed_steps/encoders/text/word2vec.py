@@ -7,17 +7,24 @@ from checkpointed_core.arg_spec import arguments, constraints
 import numpy
 
 from ... import bases
-from ...data_loaders import Word2VecLoader, GloveLoader
+from ...data_loaders import CWord2VecLoader, GensimWord2VecLoader, GloveLoader
 
 
 class Word2VecEncoder(checkpointed_core.PipelineStep, bases.WordVectorEncoder):
 
     @classmethod
-    def supports_step_as_input(cls, step: type[PipelineStep]) -> bool:
-        return step == Word2VecLoader or step == GloveLoader
+    def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
+        if label == 'documents':
+            return issubclass(step, bases.TokenizedDocumentSource)
+        elif label == 'vectors':
+            return step in [
+                CWord2VecLoader, GensimWord2VecLoader, GloveLoader
+            ]
+        return super(cls, cls).supports_step_as_input(step, label)
 
-    async def execute(self, *inputs) -> typing.Any:
-        vectors, documents = inputs
+    async def execute(self, **inputs) -> typing.Any:
+        vectors = inputs['vectors']
+        documents = inputs['documents']
         replacement_vector = None
         if self.config.get_casted('params.unknown-word-policy', str) == 'replace':
             key = self.config.get_casted('params.unknown-word-replacement', str)
@@ -28,17 +35,18 @@ class Word2VecEncoder(checkpointed_core.PipelineStep, bases.WordVectorEncoder):
         result = []
         for document in documents:
             document_vectors = []
-            for word in document:
-                try:
-                    document_vectors.append(vectors[word])
-                except KeyError:
-                    match self.config.get_casted('params.unknown-word-policy', str):
-                        case 'ignore':
-                            pass
-                        case 'error':
-                            raise KeyError(f'Word "{word}" not found in word embedding')
-                        case 'replace':
-                            document_vectors.append(replacement_vector)
+            for sent in document:
+                for word in sent:
+                    try:
+                        document_vectors.append(vectors[word])
+                    except KeyError:
+                        match self.config.get_casted('params.unknown-word-policy', str):
+                            case 'ignore':
+                                pass
+                            case 'error':
+                                raise KeyError(f'Word "{word}" not found in word embedding')
+                            case 'replace':
+                                document_vectors.append(replacement_vector)
             result.append(numpy.vstack(document_vectors))
         return numpy.vstack(result)
 

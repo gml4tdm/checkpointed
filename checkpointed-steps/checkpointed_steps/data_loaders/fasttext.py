@@ -7,7 +7,8 @@ from .shared import GenericFileLoader
 
 class FastTextLoader(GenericFileLoader):
 
-    async def execute(self, *inputs) -> typing.Any:
+    async def execute(self, **inputs) -> typing.Any:
+        assert len(inputs) == 0
         return FastText.load(self.config.get_casted('params.filename', str))
 
     @staticmethod
