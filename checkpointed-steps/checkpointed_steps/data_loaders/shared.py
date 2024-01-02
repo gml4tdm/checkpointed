@@ -2,17 +2,17 @@ import abc
 import hashlib
 import typing
 
-import checkpointed
-from checkpointed.arg_spec.constraints import Constraint
-from checkpointed.arg_spec.arguments import Argument, StringArgument
+import checkpointed_core
+from checkpointed_core.arg_spec.constraints import Constraint
+from checkpointed_core.arg_spec.arguments import Argument, StringArgument
 
 from .. import bases
 
 
-class GenericFileLoader(checkpointed.PipelineStep, bases.DataLoader, abc.ABC):
+class GenericFileLoader(checkpointed_core.PipelineStep, bases.DataLoader, abc.ABC):
 
     @classmethod
-    def supports_step_as_input(cls, step: type[checkpointed.PipelineStep]) -> bool:
+    def supports_step_as_input(cls, step: type[checkpointed_core.PipelineStep]) -> bool:
         return False
 
     @classmethod

@@ -8,7 +8,7 @@ from .shared import GenericFileLoader
 class Word2VecLoader(GenericFileLoader):
 
     async def execute(self, *inputs) -> typing.Any:
-        return KeyedVectors.load_word2vec_format(self.config['filename'])
+        return KeyedVectors.load_word2vec_format(self.config.get_casted('params.filename', str))
 
     @staticmethod
     def save_result(path: str, result: typing.Any):

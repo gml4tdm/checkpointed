@@ -8,7 +8,7 @@ class JsonLoader(GenericFileLoader):
 
     async def execute(self, *inputs) -> typing.Any:
         assert len(inputs) == 0
-        with open(self.config['filename']) as file:
+        with open(self.config.get_casted('params.filename', str)) as file:
             return json.load(file)
 
     @staticmethod

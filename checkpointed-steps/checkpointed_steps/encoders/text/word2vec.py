@@ -1,8 +1,8 @@
 import typing
 
-import checkpointed
-from checkpointed import PipelineStep
-from checkpointed.arg_spec import arguments, constraints
+import checkpointed_core
+from checkpointed_core import PipelineStep
+from checkpointed_core.arg_spec import arguments, constraints
 
 import numpy
 
@@ -10,7 +10,7 @@ from ... import bases
 from ...data_loaders import Word2VecLoader, GloveLoader
 
 
-class Word2VecEncoder(checkpointed.PipelineStep, bases.WordVectorEncoder):
+class Word2VecEncoder(checkpointed_core.PipelineStep, bases.WordVectorEncoder):
 
     @classmethod
     def supports_step_as_input(cls, step: type[PipelineStep]) -> bool:

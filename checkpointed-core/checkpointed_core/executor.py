@@ -57,6 +57,7 @@ class TaskExecutor:
             logger.info(f"Starting pending task {task.step}")
             args = []
             for handle, factory in task.inputs:
+                logger.info(f'Loading input {handle} (type {factory.__name__}) for task {task.step}')
                 args.append(result_store.retrieve(handle, factory))
             instance = task.factory(config_by_step[task.step])
 
@@ -64,14 +65,19 @@ class TaskExecutor:
                               _factory=task.factory,
                               _instance=instance,
                               _inputs=tuple(args)):
+                logger.info(f'[{_handle}] Running task')
                 if result_store.have_checkpoint_for(_handle):
+                    logger.info(f'[{_handle}] Loading result from checkpoint')
                     result = result_store.retrieve(_handle, _factory)
                 else:
+                    logger.info(f'[{_handle}] Executing step')
                     result = await _instance.execute(*_inputs)
+                    logger.info(f'[{_handle}] Storing result')
                     result_store.store(_handle,
                                        _factory,
                                        result,
                                        _instance.get_checkpoint_metadata())
+                logger.info(f'[{_handle}] Finished task')
                 return result, _handle, _factory
 
             self._active.add(asyncio.Task(wrapper(), loop=self._loop))

@@ -112,7 +112,8 @@ class Pipeline:
                 Start(
                     handle,
                     self._steps[handle],
-                    [(h, self._steps[h]) for h in self._connections[handle]]
+                    #[(h, self._steps[h]) for h in self._connections[handle]]
+                    [(h, self._steps[h]) for h in dependencies_per_step[handle]]
                 )
             )
         for handle, dependencies in dependencies_per_step.items():
@@ -127,7 +128,8 @@ class Pipeline:
                         Start(
                             handle,
                             self._steps[handle],
-                            [(h, self._steps[h]) for h in self._connections[handle]]
+                            #[(h, self._steps[h]) for h in self._connections[handle]]
+                            [(h, self._steps[h]) for h in dependencies_per_step[handle]]
                         )
                         for handle in handles
                     ]

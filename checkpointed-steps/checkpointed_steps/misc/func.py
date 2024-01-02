@@ -7,10 +7,10 @@ import pickle
 import types
 import typing
 
-import checkpointed
-from checkpointed import PipelineStep
-from checkpointed.arg_spec import constraints as _constraints
-from checkpointed.arg_spec import arguments as _arguments
+import checkpointed_core
+from checkpointed_core import PipelineStep
+from checkpointed_core.arg_spec import constraints as _constraints
+from checkpointed_core.arg_spec import arguments as _arguments
 
 __all__ = ['pipeline_step', 'pickle_loader', 'pickle_saver']
 
@@ -69,7 +69,7 @@ def pipeline_step(*,
     return decorator
 
 
-class FunctionStepBase(checkpointed.PipelineStep, abc.ABC):
+class FunctionStepBase(checkpointed_core.PipelineStep, abc.ABC):
 
     @classmethod
     def supports_step_as_input(cls, step: type[PipelineStep]) -> bool:

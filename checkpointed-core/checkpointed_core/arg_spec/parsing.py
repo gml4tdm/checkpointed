@@ -26,7 +26,7 @@ class ArgumentConsumer(abc.ABC):
                         params: dict[str, typing.Any],
                         logger: logging.Logger | None = None) -> core.Config:
         inner = arguments.NestedArgumentGroup(
-            name=cls.__name__,
+            name='params',
             description=f'Argument parser for the {cls.__class__} class.',
             nested=cls.get_arguments(),
             constraint_items=cls.get_constraints(),

@@ -1,12 +1,12 @@
-import checkpointed
+import checkpointed_core
 
 __all__ = ['linear_pipeline']
 
 
 def linear_pipeline(name: str,
-                    *steps: tuple[str, type[checkpointed.PipelineStep]],
-                    outputs: dict[str, str]) -> tuple[checkpointed.Pipeline, list]:
-    pipeline = checkpointed.Pipeline(name)
+                    *steps: tuple[str, type[checkpointed_core.PipelineStep]],
+                    outputs: dict[str, str]) -> tuple[checkpointed_core.Pipeline, list]:
+    pipeline = checkpointed_core.Pipeline(name)
     if len(steps) == 0:
         raise ValueError("Linear pipeline must have at least one step")
     handles = []

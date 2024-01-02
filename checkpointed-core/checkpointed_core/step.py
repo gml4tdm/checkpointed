@@ -11,7 +11,7 @@ from .arg_spec.constraints import Constraint
 class PipelineStep(arg_spec.ArgumentConsumer, abc.ABC):
 
     def __init__(self, config):
-        self.config = self.validate_arguments(config)
+        self.config = self.parse_arguments(config)
 
     @classmethod
     @abc.abstractmethod

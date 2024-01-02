@@ -48,11 +48,11 @@ class CheckpointGraph:
 
     @staticmethod
     def _log_graph_properties(graph: CheckpointGraph, logger: logging.Logger):
-        logger.debug(' * Inputs: {}', graph.inputs)
-        logger.debug(' * Vertices: {}', graph.vertices)
-        logger.debug(' * Factories: {}', graph.factories)
-        logger.debug(' * Connections: {}', graph.connections)
-        logger.debug(' * Configs: {}', graph.config_by_step)
+        logger.debug(' * Inputs: %s', graph.inputs)
+        logger.debug(' * Vertices: %s', graph.vertices)
+        logger.debug(' * Factories: %s', graph.factories)
+        logger.debug(' * Connections: %s', graph.connections)
+        logger.debug(' * Configs: %s', graph.config_by_step)
 
     def get_largest_isomorphic_prefix(self, other: CheckpointGraph) -> dict[PipelineStepHandle, PipelineStepHandle]:
         """Starting from all input nodes, determine all nodes that
@@ -91,7 +91,10 @@ class CheckpointGraph:
             # In the end, we will return the lineup which results
             # in the largest amount of cached steps.
             mapping = self._compute_cacheable_steps(lineup, other)
-            best = max(best, mapping, key=len)
+            if best is None:
+                best = mapping
+            else:
+                best = max(best, mapping, key=len)
         # Return a dictionary containing all steps which can be
         # cached, and mapping them to their handles in the
         # old graph.
@@ -106,7 +109,7 @@ class CheckpointGraph:
             for x in self.handles_by_factory[factory]:
                 for y in other.handles_by_factory[factory]:
                     if self.config_by_step[x] == other.config_by_step[y]:
-                        self._logger.debug('Found possible isomorphic nodes: {} and {}', x, y)
+                        self._logger.debug(f'Found possible isomorphic nodes: {x} and {y}')
                         pairings_per_node[x].append((x, y))
         # Now, return every possible combination of pairings.
         number_of_lineups = 1

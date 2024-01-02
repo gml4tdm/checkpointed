@@ -61,16 +61,20 @@ class ResultStore:
         }
         self._delete_old_checkpoints(keep=set(filename_mapping.values()))
         # Rename files in two-step to prevent overwriting files
+        to_rename = []
         for new, old in filename_mapping.items():
+            if not os.path.exists(old):
+                continue
             os.rename(old, new + '_temp')
-        for new, old in filename_mapping.items():
+            to_rename.append(new)
+        for new in to_rename:
             os.rename(new + '_temp', new)
 
     def _delete_old_checkpoints(self, keep: set[str]):
         for file_list in [self._get_metadata_files(), self._get_checkpoint_files()]:
             for file in file_list:
                 path, filename = os.path.split(file)
-                if filename not in keep:
+                if filename not in keep and os.path.exists(filename):
                     os.remove(file)
 
     def store(self,
@@ -101,20 +105,18 @@ class ResultStore:
         if is_output:
             return os.path.join(
                 self._output_directory,
-                'output',
                 self._file_by_step[handle]
             )
         else:
             return os.path.join(
                 self._checkpoint_directory,
-                'checkpoints',
-                str(handle)
+                str(handle.get_raw_identifier())
             )
 
     def _get_metadata_filename(self, handle: PipelineStepHandle):
         return os.path.join(
             self._checkpoint_metadata_directory,
-            str(handle)
+            str(handle.get_raw_identifier())
         )
 
     def _get_metadata_files(self) -> list[str]:

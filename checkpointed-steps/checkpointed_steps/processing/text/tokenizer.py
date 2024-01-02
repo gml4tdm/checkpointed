@@ -1,8 +1,8 @@
 import typing
 
-import checkpointed
-from checkpointed import PipelineStep
-from checkpointed.arg_spec import constraints, arguments
+import checkpointed_core
+from checkpointed_core import PipelineStep
+from checkpointed_core.arg_spec import constraints, arguments
 
 import nltk.tokenize
 
@@ -11,7 +11,7 @@ from ... import bases
 import pickle
 
 
-class Tokenize(checkpointed.PipelineStep):
+class Tokenize(checkpointed_core.PipelineStep):
 
     @classmethod
     def supports_step_as_input(cls, step: type[PipelineStep]) -> bool:

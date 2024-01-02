@@ -1,7 +1,7 @@
 [project]
-name = "checkpointed-steps"
-version = "0.1.0"
-requires-python = ">= 3.8"
+name = "checkpointed"
+version = "0.4.0"
+requires-python = ">= 3.10"
 authors = [
     {name = "Jesse Maarleveld", email = "jessemaarleveld@gmail.com"}
 ]
@@ -10,11 +10,5 @@ maintainers = [
 ]
 readme = {file = "README.md", content-type = "text/markdown"}
 license = {file = "LICENSE"}
-dependencies = [
-    "checkpointed-core >= 0.4.0",
-    "pandas",
-    "gensim",
-    "numpy",
-    "nltk"
-]
+dependencies = []
 

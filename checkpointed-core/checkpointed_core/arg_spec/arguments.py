@@ -268,6 +268,7 @@ class NestedArgumentGroup(Argument):
         self._nested = nested
         self._constraints = constraint_items
         self._config_factory = core.ConfigFactory()
+        self._config_factory.register_namespace(self.argument_name)
         for name, arg in self._nested.items():
             if isinstance(arg, NestedArgumentGroup):
                 self._config_factory.mount_sub_config(f'{self.argument_name}.{name}', arg._config_factory)

@@ -1,7 +1,14 @@
 __pycache__
 .idea
 dist
-checkpointed.egg-info
+*.egg-info
+build
+
+# Testing stuff
+checkpoints
+out
+testing.py
+install.cmd 
 
 *.pyc
 *.csv

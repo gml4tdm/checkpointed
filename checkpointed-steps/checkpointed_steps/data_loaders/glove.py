@@ -9,8 +9,8 @@ from .shared import GenericFileLoader
 class GloveLoader(GenericFileLoader):
 
     async def execute(self, *inputs) -> typing.Any:
-        temp_file = self.config['filename'] + '_converted.temp'
-        glove2word2vec(self.config['filename'], temp_file)
+        temp_file = self.config.get_casted('params.filename', str) + '_converted.temp'
+        glove2word2vec(self.config.get_casted('params.filename', str), temp_file)
         return KeyedVectors.load_word2vec_format(temp_file)
 
     @staticmethod
