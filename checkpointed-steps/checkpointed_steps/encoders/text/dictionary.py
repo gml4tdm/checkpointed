@@ -1,3 +1,5 @@
+import itertools
+import pickle
 import typing
 
 import checkpointed_core
@@ -7,45 +9,44 @@ from checkpointed_core.arg_spec import constraints, arguments
 from ... import bases
 
 
-class BagOfWords(checkpointed_core.PipelineStep):
+class GenerateWordToIndexDictionary(checkpointed_core.PipelineStep, bases.WordIndexDictionarySource):
 
     @classmethod
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
         if label == 'documents':
-            return issubclass(step, bases.TextDocumentSource)
+            return issubclass(step, bases.FlattenedTokenizedDocumentSource)
         return super(cls, cls).supports_step_as_input(step, label)
 
     async def execute(self, **inputs) -> typing.Any:
-        pass
+        word_index_mapping = {}
+        for token in itertools.chain.from_iterable(inputs['documents']):
+            if token not in word_index_mapping:
+                word_index_mapping[token] = len(word_index_mapping)
+        return word_index_mapping
 
     @staticmethod
     def save_result(path: str, result: typing.Any):
-        pass
+        with open(path, 'wb') as file:
+            pickle.dump(result, file)
 
     @staticmethod
     def load_result(path: str):
-        pass
+        with open(path, 'rb') as file:
+            return pickle.load(file)
 
     @staticmethod
     def is_deterministic() -> bool:
-        pass
+        return True
 
     def get_checkpoint_metadata(self) -> typing.Any:
-        pass
+        return {}
 
     def checkpoint_is_valid(self, metadata: typing.Any) -> bool:
-        pass
+        return True
 
     @classmethod
     def get_arguments(cls) -> dict[str, arguments.Argument]:
-        return {
-            'minimum-frequency': arguments.IntArgument(
-                name='minimum-frequency',
-                description='Minimum frequency of a word to be included in the vocabulary.',
-                minimum=1,
-                default=1
-            )
-        }
+        return {}
 
     @classmethod
     def get_constraints(cls) -> list[constraints.Constraint]:

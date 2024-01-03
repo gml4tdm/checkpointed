@@ -16,5 +16,7 @@ dependencies = [
     "gensim",
     "numpy",
     "nltk",
-    "contractions"
+    "contractions",
+    "scipy",
+    "scikit-learn"
 ]

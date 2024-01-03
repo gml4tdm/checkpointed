@@ -5,3 +5,6 @@ from .stemming import PorterStemming
 from .tokenizer import Tokenize
 from .stopwords import RemoveStopwords
 from .punctuation import RemovePunctuation
+from .tf import TermFrequency
+from .df import DocumentFrequency
+from .df_filter import DocumentFrequencyFilter

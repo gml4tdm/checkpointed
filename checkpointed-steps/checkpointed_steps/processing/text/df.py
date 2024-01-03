@@ -1,42 +1,52 @@
+import pickle
 import typing
 
 import checkpointed_core
 from checkpointed_core import PipelineStep
 from checkpointed_core.arg_spec import constraints, arguments
 
+from ... import bases
+
 
 class DocumentFrequency(checkpointed_core.PipelineStep):
 
-
     @classmethod
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        pass
+        if label == 'documents':
+            return issubclass(step, bases.FlattenedTokenizedDocumentSource)
+        return super(cls, cls).supports_step_as_input(step, label)
 
     async def execute(self, **inputs) -> typing.Any:
-        pass
+        df = {}
+        for document in inputs['documents']:
+            for token in set(document):
+                df[token] = df.get(token, 0) + 1
+        return df
 
     @staticmethod
     def save_result(path: str, result: typing.Any):
-        pass
+        with open(path, 'wb') as file:
+            pickle.dump(result, file)
 
     @staticmethod
     def load_result(path: str):
-        pass
+        with open(path, 'rb') as file:
+            return pickle.load(file)
 
     @staticmethod
     def is_deterministic() -> bool:
-        pass
+        return True
 
     def get_checkpoint_metadata(self) -> typing.Any:
-        pass
+        return {}
 
     def checkpoint_is_valid(self, metadata: typing.Any) -> bool:
-        pass
+        return True
 
     @classmethod
     def get_arguments(cls) -> dict[str, arguments.Argument]:
-        pass
+        return {}
 
     @classmethod
     def get_constraints(cls) -> list[constraints.Constraint]:
-        pass
+        return []

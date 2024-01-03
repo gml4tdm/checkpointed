@@ -295,6 +295,102 @@ class NotEqual(ValueExpression):
         }
 
 
+class LessThan(ValueExpression):
+
+    def __init__(self, lhs: ValueSpecifier, rhs: ValueSpecifier):
+        self._lhs = lhs
+        self._rhs = rhs
+
+    @property
+    def involved_arguments(self) -> list[str]:
+        return self._lhs.involved_arguments + self._rhs.involved_arguments
+
+    def evaluate(self, conf: Config) -> bool:
+        return self._lhs.get_value(conf) < self._rhs.get_value(conf)
+
+    def to_json(self):
+        return {
+            'type': 'value-check',
+            'payload': {
+                'lhs': self._lhs.to_json(),
+                'operation': 'less-than',
+                'rhs': self._rhs.to_json()
+            }
+        }
+
+
+class GreaterThan(ValueExpression):
+
+    def __init__(self, lhs: ValueSpecifier, rhs: ValueSpecifier):
+        self._lhs = lhs
+        self._rhs = rhs
+
+    @property
+    def involved_arguments(self) -> list[str]:
+        return self._lhs.involved_arguments + self._rhs.involved_arguments
+
+    def evaluate(self, conf: Config) -> bool:
+        return self._lhs.get_value(conf) > self._rhs.get_value(conf)
+
+    def to_json(self):
+        return {
+            'type': 'value-check',
+            'payload': {
+                'lhs': self._lhs.to_json(),
+                'operation': 'greater-than',
+                'rhs': self._rhs.to_json()
+            }
+        }
+
+
+class LessThanOrEqual(ValueExpression):
+
+    def __init__(self, lhs: ValueSpecifier, rhs: ValueSpecifier):
+        self._lhs = lhs
+        self._rhs = rhs
+
+    @property
+    def involved_arguments(self) -> list[str]:
+        return self._lhs.involved_arguments + self._rhs.involved_arguments
+
+    def evaluate(self, conf: Config) -> bool:
+        return self._lhs.get_value(conf) <= self._rhs.get_value(conf)
+
+    def to_json(self):
+        return {
+            'type': 'value-check',
+            'payload': {
+                'lhs': self._lhs.to_json(),
+                'operation': 'less-than-or-equal',
+                'rhs': self._rhs.to_json()
+            }
+        }
+
+
+class GreaterThanOrEqual(ValueExpression):
+
+    def __init__(self, lhs: ValueSpecifier, rhs: ValueSpecifier):
+        self._lhs = lhs
+        self._rhs = rhs
+
+    @property
+    def involved_arguments(self) -> list[str]:
+        return self._lhs.involved_arguments + self._rhs.involved_arguments
+
+    def evaluate(self, conf: Config) -> bool:
+        return self._lhs.get_value(conf) >= self._rhs.get_value(conf)
+
+    def to_json(self):
+        return {
+            'type': 'value-check',
+            'payload': {
+                'lhs': self._lhs.to_json(),
+                'operation': 'greater-than-or-equal',
+                'rhs': self._rhs.to_json()
+            }
+        }
+
+
 class ListContains(ValueExpression):
 
     def __init__(self, lhs: ValueSpecifier, rhs: ValueSpecifier):

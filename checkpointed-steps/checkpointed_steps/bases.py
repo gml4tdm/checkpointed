@@ -35,5 +35,26 @@ class FlattenedTokenizedDocumentSource:
 
 class WordVectorEncoder:
     """Base class for all steps that return encoded word vectors.
+
+    This means that documents are returned as matrices.
     """
 
+
+class DocumentVectorEncoder:
+    """Base class for all steps that return encoded document vectors.
+
+    This means that documents are returned as vectors.
+    """
+
+
+class DocumentDictEncoder:
+    """Base class for all steps that return encoded document dicts.
+
+    This means that documents are returned as dicts.
+    """
+
+
+class WordIndexDictionarySource:
+    """Base class for all classes that return word-to-index dictionaries
+    for generating bag of words-like features.
+    """
