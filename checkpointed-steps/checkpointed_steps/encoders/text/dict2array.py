@@ -14,7 +14,7 @@ class DictToSparseArray(checkpointed_core.PipelineStep, bases.DocumentSparseVect
 
     @classmethod
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        if label == 'documents':
+        if label == 'document-dicts':
             return issubclass(step, bases.DocumentDictEncoder)
         if label == 'word-to-index-dictionary':
             return issubclass(step, bases.WordIndexDictionarySource)
@@ -22,7 +22,7 @@ class DictToSparseArray(checkpointed_core.PipelineStep, bases.DocumentSparseVect
 
     async def execute(self, **inputs) -> typing.Any:
         word_to_index = inputs['word-to-index-dictionary']
-        documents = inputs['documents']
+        documents = inputs['document-dicts']
         data = []
         row_ind = []
         col_ind = []
@@ -38,13 +38,11 @@ class DictToSparseArray(checkpointed_core.PipelineStep, bases.DocumentSparseVect
 
     @staticmethod
     def save_result(path: str, result: typing.Any):
-        with open(path, 'wb') as file:
-            pickle.dump(result, file)
+        scipy.sparse.save_npz(path, result)
 
     @staticmethod
     def load_result(path: str):
-        with open(path, 'rb') as file:
-            return pickle.load(file)
+        return scipy.sparse.load_npz(path + '.npz')
 
     @staticmethod
     def is_deterministic() -> bool:

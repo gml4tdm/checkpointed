@@ -1,7 +1,7 @@
 import json
 import typing
 
-from gensim.models.ldamulticore import LdaMulticore
+from gensim.models.lsimodel import LsiModel as _LsiModel
 from gensim.matutils import Sparse2Corpus
 
 import checkpointed_core
@@ -11,7 +11,7 @@ from checkpointed_core.arg_spec import constraints, arguments
 from .... import bases
 
 
-class LdaModel(checkpointed_core.PipelineStep):
+class LsiModel(checkpointed_core.PipelineStep):
 
     @classmethod
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
@@ -22,11 +22,10 @@ class LdaModel(checkpointed_core.PipelineStep):
         return super(cls, cls).supports_step_as_input(step, label)
 
     async def execute(self, **inputs) -> typing.Any:
-        model = LdaMulticore(
+        model = _LsiModel(
             Sparse2Corpus(inputs['documents-matrix'], documents_columns=False),
             id2word={v: k for k, v in inputs['dictionary'].items()},
             num_topics=self.config.get_casted('params.number-of-topics', int),
-            workers=self.config.get_casted('params.number-of-workers', int)
         )
         return model
 
@@ -36,7 +35,7 @@ class LdaModel(checkpointed_core.PipelineStep):
 
     @staticmethod
     def load_result(path: str):
-        return LdaMulticore.load(path)
+        return _LsiModel.load(path)
 
     @staticmethod
     def is_deterministic() -> bool:
@@ -57,12 +56,6 @@ class LdaModel(checkpointed_core.PipelineStep):
                 default=10,
                 minimum=1
             ),
-            'number-of-workers': arguments.IntArgument(
-                name='number-of-workers',
-                description='Number of workers to use.',
-                default=1,
-                minimum=1
-            )
         }
 
     @classmethod
@@ -70,20 +63,31 @@ class LdaModel(checkpointed_core.PipelineStep):
         return []
 
 
-class ExtractLdaTopics(checkpointed_core.PipelineStep):
+class ExtractLsiTopics(checkpointed_core.PipelineStep):
 
     @classmethod
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        if label == 'lda-model':
-            return issubclass(step, LdaModel)
+        if label == 'lsi-model':
+            return issubclass(step, LsiModel)
         return super(cls, cls).supports_step_as_input(step, label)
 
     async def execute(self, **inputs) -> typing.Any:
-        model: LdaMulticore = inputs['lda-model']
-        return model.show_topics(
-            num_topics=self.config.get_casted('params.number-of-topics', int),
-            num_words=self.config.get_casted('params.number-of-words', int)
+        model:  _LsiModel = inputs['lsi-model']
+        topics = model.show_topics(
+            num_topics=-1,
+            num_words=self.config.get_casted('params.number-of-words', int),
+            formatted=False
         )
+        return {
+            num: [
+                {
+                    'word': word,
+                    'prob': prob
+                }
+                for word, prob in words
+            ]
+            for num, words in topics
+        }
 
     @staticmethod
     def save_result(path: str, result: typing.Any):
@@ -108,11 +112,6 @@ class ExtractLdaTopics(checkpointed_core.PipelineStep):
     @classmethod
     def get_arguments(cls) -> dict[str, arguments.Argument]:
         return {
-            'number-of-topics': arguments.IntArgument(
-                name='number-of-topics',
-                description='Number of topics to generate.',
-                minimum=1
-            ),
             'number-of-words': arguments.IntArgument(
                 name='number-of-words',
                 description='Number of words to generate for each topic.',

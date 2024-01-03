@@ -98,24 +98,26 @@ class CheckpointGraph:
         # Return a dictionary containing all steps which can be
         # cached, and mapping them to their handles in the
         # old graph.
+        if best is None:
+            best = {}
+        self._logger.info(f'Caching {len(best)} steps...')
         return dict(best)
 
     def _generate_equivalent_vertices(self, other: CheckpointGraph):
         # First, for every node, collect a set of all possible
         # matching nodes in the other graph.
-        factories = {self.factories[h] for h in self.inputs}
         pairings_per_node = collections.defaultdict(list)
-        for factory in factories:
-            for x in self.handles_by_factory[factory]:
+        for factory, handles in self.handles_by_factory.items():
+            for x in handles:
                 for y in other.handles_by_factory[factory]:
                     if self.config_by_step[x] == other.config_by_step[y]:
-                        self._logger.debug(f'Found possible isomorphic nodes: {x} and {y}')
+                        self._logger.info(f'Found possible isomorphic nodes: {x} and {y}')
                         pairings_per_node[x].append((x, y))
         # Now, return every possible combination of pairings.
         number_of_lineups = 1
         for pair in pairings_per_node.values():
             number_of_lineups *= len(pair)
-        self._logger.debug(f'Checking {number_of_lineups} possible lineups...')
+        self._logger.info(f'Checking {number_of_lineups} possible lineups...')
         yield from itertools.product(*pairings_per_node.values())
 
     def _compute_cacheable_steps(self,

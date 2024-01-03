@@ -20,7 +20,7 @@ class ExpandContractions(checkpointed_core.PipelineStep, bases.TextDocumentSourc
 
     async def execute(self, **inputs) -> typing.Any:
         return [
-            contractions.fix(document, slang=self.config.get_casted('fix-slang', bool))
+            contractions.fix(document, slang=self.config.get_casted('params.fix-slang', bool))
             for document in inputs['documents']
         ]
 

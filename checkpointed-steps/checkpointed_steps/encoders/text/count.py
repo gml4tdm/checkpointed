@@ -24,7 +24,7 @@ class CountVectors(checkpointed_core.PipelineStep, bases.DocumentDictEncoder):
     async def execute(self, **inputs) -> typing.Any:
         tf_values = inputs['tf']
         dictionary = inputs['dictionary']
-        unknown_word_policy = self.config.get_casted('unknown-word-policy', str)
+        unknown_word_policy = self.config.get_casted('params.unknown-word-policy', str)
         result = []
         for document in tf_values:
             document_result = {}

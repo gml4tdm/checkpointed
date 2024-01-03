@@ -56,7 +56,10 @@ class ResultStore:
 
     def _remap_checkpoints(self, mapping: dict[PipelineStepHandle, PipelineStepHandle]):
         filename_mapping = {
-            self._get_filename(new): self._get_filename(new)
+            self._get_filename(new): self._get_filename(old)
+            for new, old in mapping.items()
+        } | {
+            self._get_metadata_filename(new): self._get_metadata_filename(old)
             for new, old in mapping.items()
         }
         self._delete_old_checkpoints(keep=set(filename_mapping.values()))
@@ -73,8 +76,7 @@ class ResultStore:
     def _delete_old_checkpoints(self, keep: set[str]):
         for file_list in [self._get_metadata_files(), self._get_checkpoint_files()]:
             for file in file_list:
-                path, filename = os.path.split(file)
-                if filename not in keep and os.path.exists(filename):
+                if file not in keep:
                     os.remove(file)
 
     def store(self,
@@ -97,7 +99,10 @@ class ResultStore:
         return factory.load_result(filename)
 
     def have_checkpoint_for(self, handle: PipelineStepHandle) -> bool:
-        return os.path.exists(self._get_filename(handle))
+        return (
+            os.path.exists(self._get_filename(handle)) and
+            os.path.exists(self._get_metadata_filename(handle))
+        )
 
     def _get_filename(self,
                       handle: PipelineStepHandle,
@@ -110,6 +115,7 @@ class ResultStore:
         else:
             return os.path.join(
                 self._checkpoint_directory,
+                'data',
                 str(handle.get_raw_identifier())
             )
 

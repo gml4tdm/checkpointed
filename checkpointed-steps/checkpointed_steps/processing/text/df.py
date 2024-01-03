@@ -14,12 +14,17 @@ class DocumentFrequency(checkpointed_core.PipelineStep):
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
         if label == 'documents':
             return issubclass(step, bases.FlattenedTokenizedDocumentSource)
+        if label == 'dictionary':
+            return issubclass(step, bases.WordIndexDictionarySource)
         return super(cls, cls).supports_step_as_input(step, label)
 
     async def execute(self, **inputs) -> typing.Any:
         df = {}
+        dictionary = inputs['dictionary']
         for document in inputs['documents']:
             for token in set(document):
+                if token not in dictionary:
+                    continue
                 df[token] = df.get(token, 0) + 1
         return df
 

@@ -296,7 +296,7 @@ class NestedArgumentGroup(Argument):
         order, graph = self._check_arg_dependencies()
         parsed = self._parse_args(params, order, graph, logger)
         try:
-            self._impose_constraints(parsed)
+            self._impose_constraints(parsed, logger)
         except ArgumentParsingError as e:
             logger.error(f'Constraint failure: {e}')
             raise e
@@ -391,10 +391,14 @@ class NestedArgumentGroup(Argument):
             raise ValueError(message) from e
         return is_enabled
 
-    def _impose_constraints(self, conf: core.Config):
+    def _impose_constraints(self, conf: core.Config, logger: logging.Logger):
         for constraint in self._constraints:
-            if not constraint.impose(conf):
-                raise ArgumentParsingError(f'Constraint {constraint} failed')
+            try:
+                if not constraint.impose(conf):
+                    raise ArgumentParsingError(f'Constraint {constraint} failed')
+            except core.NotSet:
+                involved = ', '.join(sorted(constraint.involved_arguments))
+                logger.info(f'Skipping constraint on {involved}; not all params are enabled.')
 
 
 def _fmt_list(x: typing.Iterable[str]):

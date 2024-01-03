@@ -130,15 +130,15 @@ class DocumentFrequencyFilter(checkpointed_core.PipelineStep, bases.WordIndexDic
         return [
             constraints.BooleanConstraint(
                 expr=constraints.LessThanOrEqual(
-                    constraints.ArgumentRef('minimum-inclusion-count'),
-                    constraints.ArgumentRef('maximum-inclusion-count')
+                    constraints.ArgumentRef('params.minimum-inclusion-count'),
+                    constraints.ArgumentRef('params.maximum-inclusion-count')
                 ),
                 message='The minimum inclusion count must be less than or equal to the maximum inclusion count.'
             ),
             constraints.BooleanConstraint(
                 expr=constraints.LessThanOrEqual(
-                    constraints.ArgumentRef('minimum-inclusion-fraction'),
-                    constraints.ArgumentRef('maximum-inclusion-fraction')
+                    constraints.ArgumentRef('params.minimum-inclusion-fraction'),
+                    constraints.ArgumentRef('params.maximum-inclusion-fraction')
                 ),
                 message='The minimum inclusion fraction must be less than or equal to the maximum inclusion fraction.'
             )

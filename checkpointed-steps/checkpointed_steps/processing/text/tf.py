@@ -14,14 +14,18 @@ class TermFrequency(checkpointed_core.PipelineStep):
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
         if label == 'documents':
             return issubclass(step, bases.FlattenedTokenizedDocumentSource)
+        if label == 'dictionary':
+            return issubclass(step, bases.WordIndexDictionarySource)
         return super(cls, cls).supports_step_as_input(step, label)
 
     async def execute(self, **inputs) -> typing.Any:
         result = []
+        dictionary = inputs['dictionary']
         for document in inputs['documents']:
             tf = {}
             for token in document:
-                tf[token] = tf.get(token, 0) + 1
+                if token in dictionary:
+                    tf[token] = tf.get(token, 0) + 1
             result.append(tf)
         return result
 
