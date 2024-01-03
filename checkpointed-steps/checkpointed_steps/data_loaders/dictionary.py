@@ -1,3 +1,4 @@
+import os
 import pickle
 import typing
 
@@ -13,10 +14,10 @@ class LoadWordToIndexDictionary(shared.GenericFileLoader, bases.WordIndexDiction
 
     @staticmethod
     def save_result(path: str, result: typing.Any):
-        with open(path, 'wb') as file:
+        with open(os.path.join(path, 'main.pickle'), 'wb') as file:
             pickle.dump(result, file)
 
     @staticmethod
     def load_result(path: str):
-        with open(path, 'rb') as file:
+        with open(os.path.join(path, 'main.pickle'), 'rb') as file:
             return pickle.load(file)

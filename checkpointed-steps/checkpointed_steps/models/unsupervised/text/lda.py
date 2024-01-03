@@ -1,4 +1,5 @@
 import json
+import os
 import typing
 
 from gensim.models.ldamulticore import LdaMulticore
@@ -32,11 +33,11 @@ class LdaModel(checkpointed_core.PipelineStep):
 
     @staticmethod
     def save_result(path: str, result: typing.Any):
-        result.save(path)
+        result.save(os.path.join(path, 'main.bin'))
 
     @staticmethod
     def load_result(path: str):
-        return LdaMulticore.load(path)
+        return LdaMulticore.load(os.path.join(path, 'main.bin'))
 
     @staticmethod
     def is_deterministic() -> bool:
@@ -87,13 +88,13 @@ class ExtractLdaTopics(checkpointed_core.PipelineStep):
 
     @staticmethod
     def save_result(path: str, result: typing.Any):
-        with open(path, 'w') as f:
-            json.dump(result, f)
+        with open(os.path.join(path, 'main.json'), 'w') as file:
+            json.dump(result, file)
 
     @staticmethod
     def load_result(path: str):
-        with open(path, 'r') as f:
-            return json.load(f)
+        with open(os.path.join(path, 'main.json'), 'r') as file:
+            return json.load(file)
 
     @staticmethod
     def is_deterministic() -> bool:

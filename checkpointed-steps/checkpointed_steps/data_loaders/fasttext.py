@@ -1,3 +1,4 @@
+import os
 import typing
 
 from gensim.models import FastText
@@ -13,9 +14,9 @@ class FastTextLoader(GenericFileLoader):
 
     @staticmethod
     def save_result(path: str, result: typing.Any):
-        result.save(path)
+        result.save(os.path.join(path, 'main.bin'))
 
     @staticmethod
     def load_result(path: str):
-        return FastText.load(path)
+        return FastText.load(os.path.join(path, 'main.bin'))
 

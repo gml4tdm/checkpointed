@@ -1,4 +1,4 @@
-import pickle
+import os
 import typing
 
 import scipy.sparse
@@ -38,11 +38,11 @@ class DictToSparseArray(checkpointed_core.PipelineStep, bases.DocumentSparseVect
 
     @staticmethod
     def save_result(path: str, result: typing.Any):
-        scipy.sparse.save_npz(path, result)
+        scipy.sparse.save_npz(os.path.join(path, 'main.npz'), result)
 
     @staticmethod
     def load_result(path: str):
-        return scipy.sparse.load_npz(path + '.npz')
+        return scipy.sparse.load_npz(os.path.join(path, 'main.npz'))
 
     @staticmethod
     def is_deterministic() -> bool:

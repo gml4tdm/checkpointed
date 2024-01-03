@@ -1,3 +1,4 @@
+import os.path
 import typing
 
 import gensim.models
@@ -18,12 +19,11 @@ class CWord2VecLoader(GenericFileLoader):
 
     @staticmethod
     def save_result(path: str, result: typing.Any):
-        #result.save(path, binary=True)
-        result.save_word2vec_format(path, binary=True)
+        result.save_word2vec_format(os.path.join(path, 'main.bin'), binary=True)
 
     @staticmethod
     def load_result(path: str):
-        return KeyedVectors.load_word2vec_format(path, binary=True)
+        return KeyedVectors.load_word2vec_format(os.path.join(path, 'main.bin'), binary=True)
 
     @classmethod
     def get_arguments(cls) -> dict[str, arguments.Argument]:

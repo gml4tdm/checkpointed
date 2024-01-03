@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import inspect
+import os
 import pickle
 
 import types
@@ -15,14 +16,14 @@ from checkpointed_core.arg_spec import arguments as _arguments
 __all__ = ['pipeline_step', 'pickle_loader', 'pickle_saver']
 
 
-def pickle_loader(path: str) -> typing.Any:
-    with open(path, 'rb') as file:
-        return pickle.load(file)
-
-
 def pickle_saver(path: str, result: typing.Any):
-    with open(path, 'wb') as file:
+    with open(os.path.join(path, 'main.pickle'), 'wb') as file:
         pickle.dump(result, file)
+
+
+def pickle_loader(path: str):
+    with open(os.path.join(path, 'main.pickle'), 'rb') as file:
+        return pickle.load(file)
 
 
 def pipeline_step(*,

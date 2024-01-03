@@ -1,3 +1,4 @@
+import os
 import typing
 
 import checkpointed_core
@@ -52,11 +53,11 @@ class Word2VecEncoder(checkpointed_core.PipelineStep, bases.WordVectorEncoder):
 
     @staticmethod
     def save_result(path: str, result: typing.Any):
-        numpy.save(path, result)
+        numpy.save(os.path.join(path, 'main.npy'), result)
 
     @staticmethod
     def load_result(path: str):
-        return numpy.load(path)
+        return numpy.load(os.path.join(path, 'main.npy'))
 
     @classmethod
     def get_arguments(cls) -> dict[str, arguments.Argument]:

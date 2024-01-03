@@ -1,3 +1,4 @@
+import os
 import typing
 
 from gensim.models import KeyedVectors
@@ -16,9 +17,9 @@ class GloveLoader(GenericFileLoader):
 
     @staticmethod
     def save_result(path: str, result: typing.Any):
-        result.save(path)
+        result.save(os.path.join(path, 'main.bin'))
 
     @staticmethod
     def load_result(path: str):
-        return KeyedVectors.load_word2vec_format(path)
+        return KeyedVectors.load_word2vec_format(os.path.join(path, 'main.bin'))
 

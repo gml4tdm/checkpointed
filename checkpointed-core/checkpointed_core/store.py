@@ -85,10 +85,15 @@ class ResultStore:
               value: typing.Any,
               metadata: typing.Any) -> None:
         if handle in self._output_steps:
+            # Store result
             filename = self._get_filename(handle, is_output=True)
+            os.makedirs(filename)
             factory.save_result(filename, value)
+        # Store checkpoint
         filename = self._get_filename(handle)
+        os.makedirs(filename)
         factory.save_result(filename, value)
+        # Store metadata
         with open(self._get_metadata_filename(handle), 'w') as file:
             json.dump(metadata, file)
 
@@ -122,7 +127,7 @@ class ResultStore:
     def _get_metadata_filename(self, handle: PipelineStepHandle):
         return os.path.join(
             self._checkpoint_metadata_directory,
-            str(handle.get_raw_identifier())
+            str(handle.get_raw_identifier()) + '.json'
         )
 
     def _get_metadata_files(self) -> list[str]:
