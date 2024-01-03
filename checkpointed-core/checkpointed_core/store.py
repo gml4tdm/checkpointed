@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import pickle
+import shutil
 import typing
 
 from .checkpoints import CheckpointGraph
@@ -74,10 +75,12 @@ class ResultStore:
             os.rename(new + '_temp', new)
 
     def _delete_old_checkpoints(self, keep: set[str]):
-        for file_list in [self._get_metadata_files(), self._get_checkpoint_files()]:
-            for file in file_list:
-                if file not in keep:
-                    os.remove(file)
+        for file in self._get_metadata_files():
+            if file not in keep:
+                os.remove(file)
+        for file in self._get_checkpoint_files():
+            if file not in keep:
+                shutil.rmtree(file)
 
     def store(self,
               handle: PipelineStepHandle,
