@@ -47,6 +47,13 @@ class DocumentVectorEncoder:
     """
 
 
+class DocumentSparseVectorEncoder:
+    """Base class for all steps that return encoded document vectors.
+
+    This means that documents are returned as sparse vectors.
+    """
+
+
 class DocumentDictEncoder:
     """Base class for all steps that return encoded document dicts.
 

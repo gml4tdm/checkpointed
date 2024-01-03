@@ -10,7 +10,7 @@ from checkpointed_core.arg_spec import constraints, arguments
 from ... import bases
 
 
-class DictToSparseArray(checkpointed_core.PipelineStep, bases.DocumentVectorEncoder):
+class DictToSparseArray(checkpointed_core.PipelineStep, bases.DocumentSparseVectorEncoder):
 
     @classmethod
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
