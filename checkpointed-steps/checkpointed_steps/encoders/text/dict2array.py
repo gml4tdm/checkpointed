@@ -20,6 +20,10 @@ class DictToSparseArray(checkpointed_core.PipelineStep, bases.DocumentSparseVect
             return issubclass(step, bases.WordIndexDictionarySource)
         return super(cls, cls).supports_step_as_input(step, label)
 
+    @staticmethod
+    def get_input_labels() -> list:
+        return ['document-dicts', 'word-to-index-dictionary']
+
     async def execute(self, **inputs) -> typing.Any:
         word_to_index = inputs['word-to-index-dictionary']
         documents = inputs['document-dicts']

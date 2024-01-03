@@ -22,6 +22,10 @@ class DocumentFrequencyFilter(checkpointed_core.PipelineStep, bases.WordIndexDic
             return issubclass(step, bases.WordIndexDictionarySource)
         return super(cls, cls).supports_step_as_input(step, label)
 
+    @staticmethod
+    def get_input_labels() -> list:
+        return ['df', 'documents', 'word-to-index-dictionary']
+
     async def execute(self, **inputs) -> typing.Any:
         result = {}
         total_documents = len(inputs['documents'])

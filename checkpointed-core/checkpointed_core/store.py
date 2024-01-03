@@ -90,6 +90,8 @@ class ResultStore:
         if handle in self._output_steps:
             # Store result
             filename = self._get_filename(handle, is_output=True)
+            if os.path.exists(filename):
+                shutil.rmtree(filename)
             os.makedirs(filename)
             factory.save_result(filename, value)
         # Store checkpoint

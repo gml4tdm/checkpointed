@@ -22,6 +22,10 @@ class CountVectors(checkpointed_core.PipelineStep, bases.DocumentDictEncoder):
             case _:
                 return super(cls, cls).supports_step_as_input(step, label)
 
+    @staticmethod
+    def get_input_labels() -> list:
+        return ['tf', 'dictionary']
+
     async def execute(self, **inputs) -> typing.Any:
         tf_values = inputs['tf']
         dictionary = inputs['dictionary']

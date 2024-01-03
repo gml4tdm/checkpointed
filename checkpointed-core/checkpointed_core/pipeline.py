@@ -61,25 +61,30 @@ class Pipeline:
 
     def connect(self, source: PipelineStepHandle, sink: PipelineStepHandle, label: str):
         if source not in self._steps:
-            raise ValueError(f"Source step not found in pipeline {self._name}")
+            raise ValueError(f"Source step {source} not found in pipeline {self._name}")
         if sink not in self._steps:
-            raise ValueError(f"Sink step not found in pipeline {self._name}")
+            raise ValueError(f"Sink step {sink} not found in pipeline {self._name}")
         if sink in self._connections[source]:
             raise ValueError(f"Connection already exists between {source} and {sink}")
         if sink in self._inputs:
-            raise ValueError(f"Cannot use an input step as sink")
+            raise ValueError(f"Cannot use an input step ({sink}) as sink")
         if sink in self._connections[source]:
-            raise ValueError(f"Cannot have multiple connections between source and sink")
+            raise ValueError(f"Cannot have multiple connections between source {source} and sink {sink}")
         if source == sink:
-            raise ValueError(f"Cannot connect a step to itself")
+            raise ValueError(f"Cannot connect step {source} to itself")
         if not self._steps[sink].supports_step_as_input(self._steps[source], label):
-            raise ValueError(f"Cannot connect {source} to {sink} (unsupported input)")
+            raise ValueError(f"Cannot connect {source} to {sink} (unsupported input for label {label})")
+        assert (
+                label in self._steps[sink].get_input_labels() or
+                ... in self._steps[sink].get_input_labels()
+        )
         self._connections[source].append(sink)
         self._connections_types[(source, sink)] = label
 
     def build(self,
               config_by_step: dict[PipelineStepHandle, dict[str, typing.Any]], *,
               logger: logging.Logger | None = None):
+        self._check_connection_constraints()
         self._check_source_sink_constraints()
         self._check_reachability_constraints()
         self._check_cycle_constraints()
@@ -96,6 +101,7 @@ class Pipeline:
                 inputs=self._inputs,
                 vertices=set(self._steps),
                 connections=self._connections,
+                connection_types=self._connections_types,
                 factories=self._steps,
                 config_by_step=config_by_step,
                 logger=logger
@@ -138,6 +144,33 @@ class Pipeline:
                 )
             )
         return instructions
+
+    def _check_connection_constraints(self):
+        accepting_varargs = {
+            handle
+            for handle, factory in self._steps.items()
+            if ... in factory.get_input_labels()
+        }
+        missing = {
+            handle: set(factory.get_input_labels())
+            for handle, factory in self._steps.items()
+        }
+        for source, sinks in self._connections.items():
+            for sink in sinks:
+                label = self._connections_types[(source, sink)]
+                if label in missing[sink]:
+                    missing[sink].remove(label)
+                elif sink not in accepting_varargs:
+                    raise ValueError(
+                        f"Cannot connect {source} to {sink} (unsupported input for label {label})"
+                    )
+        missing_connections = ' | '.join(
+            f"{handle} ({', '.join(missing[handle])})"
+            for handle in missing
+            if missing[handle]
+        )
+        if missing_connections:
+            raise ValueError(f"Missing connections: {missing_connections}")
 
     def _check_source_sink_constraints(self):
         for handle in self._steps:

@@ -23,6 +23,10 @@ class Word2VecEncoder(checkpointed_core.PipelineStep, bases.WordVectorEncoder):
             ]
         return super(cls, cls).supports_step_as_input(step, label)
 
+    @staticmethod
+    def get_input_labels() -> list:
+        return ['documents', 'vectors']
+
     async def execute(self, **inputs) -> typing.Any:
         vectors = inputs['vectors']
         documents = inputs['documents']

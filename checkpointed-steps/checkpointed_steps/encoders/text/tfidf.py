@@ -26,6 +26,10 @@ class TFIDF(checkpointed_core.PipelineStep, bases.DocumentDictEncoder):
             case _:
                 return super(cls, cls).supports_step_as_input(step, label)
 
+    @staticmethod
+    def get_input_labels() -> list:
+        return ['tf', 'df', 'dictionary']
+
     async def execute(self, **inputs) -> typing.Any:
         tf_values = inputs['tf']
         df_by_word = inputs['df']

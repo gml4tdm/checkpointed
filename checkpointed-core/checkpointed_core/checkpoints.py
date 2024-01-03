@@ -16,6 +16,7 @@ class CheckpointGraph:
                  vertices: set[PipelineStepHandle],
                  factories: dict[PipelineStepHandle, type[PipelineStep]],
                  connections: dict[PipelineStepHandle, list[PipelineStepHandle]],
+                 connection_types: dict[tuple[PipelineStepHandle, PipelineStepHandle], str],
                  config_by_step: dict[PipelineStepHandle, dict[str, typing.Any]],
                  *,
                  logger: logging.Logger | None = None):
@@ -29,15 +30,16 @@ class CheckpointGraph:
             handle: factory.__name__ for handle, factory in factories.items()
         }
         self.connections = connections
+        self.connection_types = connection_types
         self.config_by_step = config_by_step
         # Pre-computed auxiliary attributes
         self.handles_by_factory = collections.defaultdict(set)
         for handle, factory in self.factories.items():
             self.handles_by_factory[factory].add(handle)
-        self.incoming_per_handle = collections.defaultdict(set)
+        self.incoming_per_handle = collections.defaultdict(dict)
         for source, targets in self.connections.items():
             for target in targets:
-                self.incoming_per_handle[target].add(source)
+                self.incoming_per_handle[target][self.connection_types[(source, target)]] = source
 
     def _log_graphs(self, other: CheckpointGraph):
         self._logger.debug('Computing cacheable nodes...')
@@ -146,7 +148,11 @@ class CheckpointGraph:
                         other: CheckpointGraph) -> bool:
         if len(self.incoming_per_handle[x]) != len(other.incoming_per_handle[y]):
             return False
-        for p, q in zip(self.incoming_per_handle[x], other.incoming_per_handle[y]):
-            if (p, q) not in cacheable:
+        if set(self.incoming_per_handle[x]) != set(other.incoming_per_handle[y]):
+            return False
+        for key in self.incoming_per_handle[x]:
+            if self.incoming_per_handle[x][key] != other.incoming_per_handle[y][key]:
+                return False
+            if (self.incoming_per_handle[x][key], self.incoming_per_handle[x][key]) not in cacheable:
                 return False
         return True

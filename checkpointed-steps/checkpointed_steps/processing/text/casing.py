@@ -17,6 +17,10 @@ class CaseTransform(checkpointed_core.PipelineStep, bases.TextDocumentSource):
             return issubclass(step, bases.TextDocumentSource)
         return super(cls, cls).supports_step_as_input(step, label)
 
+    @staticmethod
+    def get_input_labels() -> list:
+        return ['documents']
+
     async def execute(self, **inputs) -> typing.Any:
         match self.config.get_casted('params.mode', str):
             case 'lower':

@@ -15,6 +15,10 @@ class GenericFileLoader(checkpointed_core.PipelineStep, bases.DataLoader, abc.AB
     def supports_step_as_input(cls, step: type[checkpointed_core.PipelineStep], label: str) -> bool:
         return super(cls, cls).supports_step_as_input(step, label)
 
+    @staticmethod
+    def get_input_labels() -> list:
+        return []
+
     @classmethod
     def get_arguments(cls) -> dict[str, Argument]:
         return {

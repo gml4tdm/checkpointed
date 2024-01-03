@@ -33,7 +33,8 @@ def pipeline_step(*,
                   marker_classes,
                   is_pure=False,
                   arguments=None,
-                  constraints=None) -> typing.Callable[[types.FunctionType], type[FunctionStepBase]]:
+                  constraints=None,
+                  accepts_varargs=False) -> typing.Callable[[types.FunctionType], type[FunctionStepBase]]:
     """Decorator to wrap single functions for use as a step
     in a pipeline.
 
@@ -64,6 +65,7 @@ def pipeline_step(*,
                 '$_constraints': constraints if constraints is not None else [],
                 '$_supported_inputs': supported_input_steps,
                 '$_hash': hash_value,
+                '$_accepts_varargs': accepts_varargs,
             }
         )
         return typing.cast(type[FunctionStepBase], wrapper)
@@ -78,6 +80,14 @@ class FunctionStepBase(checkpointed_core.PipelineStep, abc.ABC):
         if label in mapping:
             return step in mapping[label]
         return super(cls, cls).supports_step_as_input(step, label)
+
+    @classmethod
+    def get_input_labels(cls) -> list:
+        mapping = getattr(cls, '$_supported_inputs')
+        result = list(mapping)
+        if getattr(cls, '$_accepts_varargs', False):
+            result.append(...)
+        return result
 
     async def execute(self, **inputs) -> typing.Any:
         function = getattr(self, '$_function')

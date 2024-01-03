@@ -22,6 +22,10 @@ class LdaModel(checkpointed_core.PipelineStep):
             return issubclass(step, bases.WordIndexDictionarySource)
         return super(cls, cls).supports_step_as_input(step, label)
 
+    @staticmethod
+    def get_input_labels() -> list:
+        return ['documents-matrix', 'dictionary']
+
     async def execute(self, **inputs) -> typing.Any:
         model = LdaMulticore(
             Sparse2Corpus(inputs['documents-matrix'], documents_columns=False),
@@ -78,6 +82,10 @@ class ExtractLdaTopics(checkpointed_core.PipelineStep):
         if label == 'lda-model':
             return issubclass(step, LdaModel)
         return super(cls, cls).supports_step_as_input(step, label)
+
+    @staticmethod
+    def get_input_labels() -> list:
+        return ['lda-model']
 
     async def execute(self, **inputs) -> typing.Any:
         model: LdaMulticore = inputs['lda-model']

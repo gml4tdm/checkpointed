@@ -19,6 +19,10 @@ class Flattened(checkpointed_core.PipelineStep, bases.FlattenedTokenizedDocument
             return issubclass(step, bases.TokenizedDocumentSource)
         return super(cls, cls).supports_step_as_input(step, label)
 
+    @staticmethod
+    def get_input_labels() -> list:
+        return ['documents']
+
     async def execute(self, **inputs) -> typing.Any:
         documents = inputs['documents']
         return [

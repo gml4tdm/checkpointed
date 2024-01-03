@@ -18,6 +18,10 @@ class RemovePunctuation(checkpointed_core.PipelineStep, bases.TokenizedDocumentS
             return issubclass(step, bases.TokenizedDocumentSource)
         return super(cls, cls).supports_step_as_input(step, label)
 
+    @staticmethod
+    def get_input_labels() -> list:
+        return ['documents']
+
     async def execute(self, **inputs) -> typing.Any:
         table = str.maketrans({p: '' for p in string.punctuation})
         documents = inputs['documents']

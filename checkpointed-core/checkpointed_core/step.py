@@ -16,6 +16,12 @@ class PipelineStep(arg_spec.ArgumentConsumer, abc.ABC):
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
         raise ValueError(f"Step {step} does not have an input labelled {label!r}")
 
+    @staticmethod
+    @abc.abstractmethod
+    def get_input_labels() -> list[str | ...]:
+        """Get input labels. Ellipsis (...) denotes arbitrary keyword arguments.
+        """
+
     @abc.abstractmethod
     async def execute(self, **inputs) -> typing.Any:
         pass

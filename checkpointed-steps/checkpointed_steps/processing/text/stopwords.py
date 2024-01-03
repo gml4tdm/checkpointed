@@ -23,6 +23,10 @@ class RemoveStopwords(checkpointed_core.PipelineStep, bases.TokenizedDocumentSou
             return issubclass(step, bases.TokenizedDocumentSource)
         return super(cls, cls).supports_step_as_input(step, label)
 
+    @staticmethod
+    def get_input_labels() -> list:
+        return ['documents']
+
     async def execute(self, **inputs) -> typing.Any:
         stopwords = set(nltk.corpus.stopwords.words('english'))
         documents = inputs['documents']

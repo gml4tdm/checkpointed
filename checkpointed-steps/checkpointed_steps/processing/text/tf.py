@@ -19,6 +19,10 @@ class TermFrequency(checkpointed_core.PipelineStep):
             return issubclass(step, bases.WordIndexDictionarySource)
         return super(cls, cls).supports_step_as_input(step, label)
 
+    @staticmethod
+    def get_input_labels() -> list:
+        return ['documents', 'dictionary']
+
     async def execute(self, **inputs) -> typing.Any:
         result = []
         dictionary = inputs['dictionary']

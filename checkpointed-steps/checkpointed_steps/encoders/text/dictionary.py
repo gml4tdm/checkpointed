@@ -18,6 +18,10 @@ class GenerateWordToIndexDictionary(checkpointed_core.PipelineStep, bases.WordIn
             return issubclass(step, bases.FlattenedTokenizedDocumentSource)
         return super(cls, cls).supports_step_as_input(step, label)
 
+    @staticmethod
+    def get_input_labels() -> list:
+        return ['documents']
+
     async def execute(self, **inputs) -> typing.Any:
         word_index_mapping = {}
         for token in itertools.chain.from_iterable(inputs['documents']):
