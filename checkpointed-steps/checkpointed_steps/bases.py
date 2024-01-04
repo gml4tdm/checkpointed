@@ -3,6 +3,22 @@ class DataLoader:
     """
 
 
+class LabelAssignment:
+    pass
+
+
+class NumericalVectorData:
+    pass
+
+
+class DenseNumericalVectorData(NumericalVectorData):
+    pass
+
+
+class SparseNumericalVectorData(NumericalVectorData):
+    pass
+
+
 class TextDocumentSource:
     """Base class for all steps that return documents.
 
@@ -40,14 +56,14 @@ class WordVectorEncoder:
     """
 
 
-class DocumentVectorEncoder:
+class DocumentVectorEncoder(DenseNumericalVectorData):
     """Base class for all steps that return encoded document vectors.
 
     This means that documents are returned as vectors.
     """
 
 
-class DocumentSparseVectorEncoder:
+class DocumentSparseVectorEncoder(SparseNumericalVectorData):
     """Base class for all steps that return encoded document vectors.
 
     This means that documents are returned as sparse vectors.

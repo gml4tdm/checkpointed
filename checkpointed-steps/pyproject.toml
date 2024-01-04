@@ -18,5 +18,10 @@ dependencies = [
     "nltk",
     "contractions",
     "scipy",
-    "scikit-learn"
+    "scikit-learn",
+    "torch == 2.1.2",
+    "transformers",
+    "sentence-transformers",
+    "umap-learn",
+    "hdbscan"
 ]

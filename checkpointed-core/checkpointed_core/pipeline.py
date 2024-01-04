@@ -180,13 +180,13 @@ class Pipeline:
                     or (self._is_source(handle) and self._is_sink(handle))
             )
             if not cond:
-                raise ValueError('Found non-boundary step which has not both a source and a sink')
+                raise ValueError(f'Found non-boundary step which has not both a source and a sink ({handle})')
         for handle in self._inputs:
             if handle not in self._connections and handle not in self._outputs:
-                raise ValueError('Found input step without any connections')
+                raise ValueError(f'Found input step without any connections ({handle})')
         for handle in self._outputs:
             if not self._is_sink(handle) and handle not in self._inputs:
-                raise ValueError('Found output step without any connections')
+                raise ValueError(f'Found output step without any connections ({handle})')
 
     def _check_reachability_constraints(self):
         reachable = set()

@@ -13,7 +13,9 @@ from checkpointed_core import PipelineStep
 from checkpointed_core.arg_spec import constraints as _constraints
 from checkpointed_core.arg_spec import arguments as _arguments
 
-__all__ = ['pipeline_step', 'pickle_loader', 'pickle_saver']
+__all__ = ['pipeline_step', 'pickle_loader', 'pickle_saver', 'json_saver', 'json_loader']
+
+import json
 
 
 def pickle_saver(path: str, result: typing.Any):
@@ -24,6 +26,16 @@ def pickle_saver(path: str, result: typing.Any):
 def pickle_loader(path: str):
     with open(os.path.join(path, 'main.pickle'), 'rb') as file:
         return pickle.load(file)
+
+
+def json_saver(path: str, result: typing.Any):
+    with open(os.path.join(path, 'main.json'), 'w') as file:
+        file.write(json.dumps(result))
+
+
+def json_loader(path: str):
+    with open(os.path.join(path, 'main.json'), 'r') as file:
+        return json.loads(file.read())
 
 
 def pipeline_step(*,
@@ -78,8 +90,8 @@ class FunctionStepBase(checkpointed_core.PipelineStep, abc.ABC):
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
         mapping = getattr(cls, '$_supported_inputs')
         if label in mapping:
-            return step in mapping[label]
-        return super(cls, cls).supports_step_as_input(step, label)
+            return issubclass(step, tuple(mapping[label]))
+        raise ValueError(f"Step {cls} does not have an input labelled {label!r}")
 
     @classmethod
     def get_input_labels(cls) -> list:

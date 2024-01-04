@@ -4,7 +4,7 @@ __all__ = ['graph_pipeline']
 
 
 def graph_pipeline(name: str,
-                   steps: list[tuple[str, type[checkpointed_core.PipelineStep]]],
+                   steps: list[tuple[str, type[checkpointed_core.PipelineStep], dict]],
                    connections: list[tuple[str, str, str]],
                    inputs: list[str],
                    outputs: dict[str, str]) -> tuple[checkpointed_core.Pipeline, dict]:
