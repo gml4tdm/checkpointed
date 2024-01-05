@@ -32,10 +32,6 @@ class GenericFileLoader(checkpointed_core.PipelineStep, bases.DataLoader, abc.AB
     def get_constraints(cls) -> list[Constraint]:
         return []
 
-    @staticmethod
-    def is_deterministic() -> bool:
-        return True
-
     def get_checkpoint_metadata(self) -> typing.Any:
         with open(self.config.get('params.filename'), 'rb') as file:
             return {'file_hash': hashlib.sha256(file.read()).hexdigest()}

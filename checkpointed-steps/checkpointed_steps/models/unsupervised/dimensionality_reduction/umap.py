@@ -46,10 +46,6 @@ class UMAPTraining(checkpointed_core.PipelineStep):
         with open(os.path.join(path, 'main.pickle'), 'rb') as f:
             return pickle.load(f)
 
-    @staticmethod
-    def is_deterministic() -> bool:
-        return False
-
     def get_checkpoint_metadata(self) -> typing.Any:
         return {'seed': self.config.get_casted('params.seed', int)}
 
@@ -131,10 +127,6 @@ class UMAPTransform(checkpointed_core.PipelineStep, bases.DenseNumericalVectorDa
     @staticmethod
     def load_result(path: str):
         return numpy.load(os.path.join(path, 'main.npy'))
-
-    @staticmethod
-    def is_deterministic() -> bool:
-        return True
 
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}

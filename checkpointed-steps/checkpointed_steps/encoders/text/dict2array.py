@@ -48,10 +48,6 @@ class DictToSparseArray(checkpointed_core.PipelineStep, bases.DocumentSparseVect
     def load_result(path: str):
         return scipy.sparse.load_npz(os.path.join(path, 'main.npz'))
 
-    @staticmethod
-    def is_deterministic() -> bool:
-        return True
-
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}
 

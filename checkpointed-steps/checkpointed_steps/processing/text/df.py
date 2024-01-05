@@ -43,10 +43,6 @@ class DocumentFrequency(checkpointed_core.PipelineStep):
         with open(os.path.join(path, 'main.pickle'), 'rb') as file:
             return pickle.load(file)
 
-    @staticmethod
-    def is_deterministic() -> bool:
-        return True
-
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}
 

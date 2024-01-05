@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import functools
 
+
+@functools.total_ordering
 class PipelineStepHandle:
 
     def __init__(self, uid: int, name: str | None):
@@ -22,6 +25,11 @@ class PipelineStepHandle:
         if isinstance(other, PipelineStepHandle):
             return self._uid == other._uid
         return False
+
+    def __lt__(self, other):
+        if isinstance(other, PipelineStepHandle):
+            return self._uid < other._uid
+        return NotImplemented
 
     def __hash__(self):
         return hash(self._uid)

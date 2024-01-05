@@ -86,10 +86,6 @@ class Word2VecEncoder(checkpointed_core.PipelineStep, bases.WordVectorEncoder):
     def get_constraints(cls) -> list[constraints.Constraint]:
         return []
 
-    @staticmethod
-    def is_deterministic() -> bool:
-        return True
-
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}
 

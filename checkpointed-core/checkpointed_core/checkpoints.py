@@ -56,7 +56,46 @@ class CheckpointGraph:
         logger.debug(' * Connections: %s', graph.connections)
         logger.debug(' * Configs: %s', graph.config_by_step)
 
-    def get_largest_isomorphic_prefix(self, other: CheckpointGraph) -> dict[PipelineStepHandle, PipelineStepHandle]:
+    def update_caching_candidates(self,
+                                  candidates: dict[PipelineStepHandle, PipelineStepHandle],
+                                  valid_checkpoints: set[PipelineStepHandle]) -> dict[PipelineStepHandle, PipelineStepHandle]:
+        self._logger.info('Valid checkpoints: %s', ', '.join(map(str, sorted(valid_checkpoints))))
+        cacheable = {
+            (x, y)
+            for x, y in candidates.items()
+            if x in self.inputs and y in valid_checkpoints
+        }
+        while True:
+            additions = {
+                (x, y)
+                for x, y in candidates.items()
+                if (
+                        (x, y) not in cacheable and
+                        y in valid_checkpoints and
+                        self._inputs_are_valid(x, y, candidates, cacheable)
+                )
+            }
+            if not additions:
+                break
+            cacheable |= additions
+        self._logger.info(f'Found {len(cacheable)} cacheable steps...')
+        self._logger.info(f'Caching mapping:')
+        cacheable = dict(cacheable)
+        for new in sorted(cacheable):
+            self._logger.info(f' * {cacheable[new]} -> {new}')
+        return cacheable
+
+    def _inputs_are_valid(self,
+                          x, _y,
+                          mapping: dict[PipelineStepHandle, PipelineStepHandle],
+                          cacheable: dict[PipelineStepHandle, PipelineStepHandle]) -> bool:
+        for z in self.incoming_per_handle[x].values():
+            if (z, mapping[z]) not in cacheable:
+                return False
+        return True
+
+    def get_caching_candidates(self,
+                               other: CheckpointGraph) -> dict[PipelineStepHandle, PipelineStepHandle]:
         """Starting from all input nodes, determine all nodes that
         have equivalent nodes in the other graph.
         Here, equivalent means that:
@@ -102,8 +141,12 @@ class CheckpointGraph:
         # old graph.
         if best is None:
             best = {}
-        self._logger.info(f'Caching {len(best)} steps...')
-        return dict(best)
+        self._logger.info(f'Caching up to {len(best)} steps...')
+        self._logger.info(f'Proposed caching mapping:')
+        cacheable = dict(best)
+        for new in sorted(cacheable):
+            self._logger.info(f' * {cacheable[new]} -> {new}')
+        return cacheable
 
     def _generate_equivalent_vertices(self, other: CheckpointGraph):
         # First, for every node, collect a set of all possible
@@ -128,13 +171,19 @@ class CheckpointGraph:
         cacheable = {
             (x, y)
             for x, y in lineup
-            if x in self.inputs and y in other.inputs
+            if (
+                    x in self.inputs and
+                    y in other.inputs
+            )
         }
         while True:
             additions = {
                 (x, y)
                 for x, y in lineup
-                if (x, y) not in cacheable and self._align_incoming(x, y, cacheable, other)
+                if (
+                        (x, y) not in cacheable and
+                        self._align_incoming(x, y, cacheable, other)
+                )
             }
             if not additions:
                 break

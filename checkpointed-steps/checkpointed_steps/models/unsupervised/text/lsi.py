@@ -42,10 +42,6 @@ class LsiModel(checkpointed_core.PipelineStep):
     def load_result(path: str):
         return _LsiModel.load(os.path.join(path, 'main.bin'))
 
-    @staticmethod
-    def is_deterministic() -> bool:
-        return False
-
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}
 
@@ -107,10 +103,6 @@ class ExtractLsiTopics(checkpointed_core.PipelineStep):
     def load_result(path: str):
         with open(os.path.join(path, 'main.json'), 'r') as file:
             return json.load(file)
-
-    @staticmethod
-    def is_deterministic() -> bool:
-        return True
 
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}

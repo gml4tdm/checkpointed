@@ -93,6 +93,7 @@ class Pipeline:
             name=self._name,
             directory=self._name,
             instructions=instructions,
+            steps=self._steps,
             output_steps=frozenset(self._outputs),
             output_files=self._output_files,
             config_by_step=config_by_step,

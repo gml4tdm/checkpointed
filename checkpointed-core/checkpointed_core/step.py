@@ -36,11 +36,6 @@ class PipelineStep(arg_spec.ArgumentConsumer, abc.ABC):
     def load_result(path: str):
         pass
 
-    @staticmethod
-    @abc.abstractmethod
-    def is_deterministic() -> bool:
-        pass
-
     @abc.abstractmethod
     def get_checkpoint_metadata(self) -> typing.Any:
         pass

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import hashlib
 import inspect
 import os
 import pickle
@@ -62,7 +63,7 @@ def pipeline_step(*,
         except OSError:
             source = None
         if source is not None:
-            hash_value = hash(source)
+            hash_value = hashlib.sha256(source.encode()).hexdigest()
         else:
             hash_value = None
         wrapper = type(
@@ -115,10 +116,6 @@ class FunctionStepBase(checkpointed_core.PipelineStep, abc.ABC):
         function = getattr(cls, '$_load_function')
         return function(path)
 
-    @classmethod
-    def is_deterministic(cls) -> bool:
-        return getattr(cls, '$_pure', False)
-
     def get_checkpoint_metadata(self) -> typing.Any:
         return {
             'function_hash': getattr(self, '$_hash')
@@ -126,7 +123,8 @@ class FunctionStepBase(checkpointed_core.PipelineStep, abc.ABC):
 
     def checkpoint_is_valid(self, metadata: typing.Any) -> bool:
         h = getattr(self, '$_hash')
-        return h is not None and h == metadata['function_hash']
+        pure = getattr(self, '$_pure')
+        return pure and h is not None and h == metadata['function_hash']
 
     @classmethod
     def get_arguments(cls) -> dict[str, _arguments.Argument]:

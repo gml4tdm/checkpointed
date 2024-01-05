@@ -7,6 +7,7 @@ import typing
 from .checkpoints import CheckpointGraph
 from .instructions import Instruction
 from .handle import PipelineStepHandle
+from .step import PipelineStep
 from . import executor
 from . import store
 
@@ -17,6 +18,7 @@ class ExecutionPlan:
                  name: str,
                  directory: str,
                  instructions: list[Instruction],
+                 steps: dict[PipelineStepHandle, type[PipelineStep]],
                  output_steps: frozenset[PipelineStepHandle],
                  output_files: dict[PipelineStepHandle, str],
                  graph: CheckpointGraph,
@@ -29,6 +31,7 @@ class ExecutionPlan:
         self._outputs = output_steps
         self._graph = graph
         self._config_by_step = config_by_step
+        self._steps = steps
         if logger is None:
             logger = logging.getLogger(self._name)
             logger.addHandler(logging.NullHandler())
@@ -41,6 +44,7 @@ class ExecutionPlan:
             output_directory=os.path.join(output_directory, self._name),
             checkpoint_directory=os.path.join(checkpoint_directory, self._name),
             file_by_step=self._output_files,
+            factories_by_step=self._steps,
             output_steps=self._outputs,
             max_size=0,
             graph=self._graph,

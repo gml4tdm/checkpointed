@@ -5,6 +5,8 @@ from .handle import PipelineStepHandle
 from .instructions import Instruction, Start, Sync
 from .store import ResultStore
 
+import typing
+
 
 class TaskExecutor:
 
@@ -27,6 +29,12 @@ class TaskExecutor:
             config_by_step: dict[PipelineStepHandle, dict],
             logger: logging.Logger) -> None:
         self._loop.run_until_complete(self._run(result_store, config_by_step, logger))
+
+    async def run_async(self,
+                        result_store: ResultStore,
+                        config_by_step: dict[PipelineStepHandle, dict],
+                        logger: logging.Logger) -> None:
+        await asyncio.wait([self._run(result_store, config_by_step, logger)])
 
     async def _run(self,
                    result_store: ResultStore,
@@ -66,10 +74,21 @@ class TaskExecutor:
                               _instance=instance,
                               _inputs=tuple(args.items())):
                 logger.info(f'[{_handle}] Running task')
+                have_result = False
+                result = None   # Just get the IDE to shut up
                 if result_store.have_checkpoint_for(_handle):
+                    # metadata = result_store.get_checkpoint_metadata(_handle)
+                    # if _instance.is_checkpoint_valid(metadata):
+                    #     logger.info(f'[{_handle}] Loading result from checkpoint')
+                    #     result = result_store.retrieve(_handle, _factory)
+                    #     have_result = True
+                    # else:
+                    #     logger.info(f'[{_handle}] Checkpoint is invalid, executing step')
                     logger.info(f'[{_handle}] Loading result from checkpoint')
                     result = result_store.retrieve(_handle, _factory)
-                else:
+                    have_result = True
+
+                if not have_result:
                     logger.info(f'[{_handle}] Executing step')
                     result = await _instance.execute(**dict(_inputs))
                     logger.info(f'[{_handle}] Storing result')

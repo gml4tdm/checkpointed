@@ -245,7 +245,7 @@ class JSONArgument(Argument):
         return value
 
     def get_json_spec(self):
-        super().get_json_spec() | {
+        return super().get_json_spec() | {
             'schema': self._schema.serialize()
         }
 

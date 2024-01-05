@@ -37,10 +37,6 @@ class SentenceTransformersDocumentEncoder(checkpointed_core.PipelineStep, bases.
     def load_result(path: str):
         return numpy.load(os.path.join(path, 'main.npy'))
 
-    @staticmethod
-    def is_deterministic() -> bool:
-        return True    # Prediction should be deterministic
-
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}
 
