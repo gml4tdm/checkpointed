@@ -41,12 +41,8 @@ class DictToSparseArray(checkpointed_core.PipelineStep, bases.DocumentSparseVect
         return scipy.sparse.csr_array((data, (row_ind, col_ind)))
 
     @staticmethod
-    def save_result(path: str, result: typing.Any):
-        scipy.sparse.save_npz(os.path.join(path, 'main.npz'), result)
-
-    @staticmethod
-    def load_result(path: str):
-        return scipy.sparse.load_npz(os.path.join(path, 'main.npz'))
+    def get_data_format() -> str:
+        return 'scipy-sparse-matrix'
 
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}

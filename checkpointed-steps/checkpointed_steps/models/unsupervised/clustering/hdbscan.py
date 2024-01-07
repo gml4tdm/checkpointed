@@ -1,8 +1,6 @@
-import os
 import typing
 
 import hdbscan
-import numpy
 
 import checkpointed_core
 from checkpointed_core import PipelineStep
@@ -36,12 +34,8 @@ class HDBSCAN(checkpointed_core.PipelineStep, bases.LabelAssignment):
         return clustered.labels_    # Ignore IDE warnings
 
     @staticmethod
-    def save_result(path: str, result: typing.Any):
-        numpy.save(os.path.join(path, 'main.npy'), result)
-
-    @staticmethod
-    def load_result(path: str):
-        return numpy.load(os.path.join(path, 'main.npy'))
+    def get_data_format() -> str:
+        return 'numpy-array'
 
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}

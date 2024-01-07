@@ -1,4 +1,3 @@
-import os
 import typing
 
 import pandas
@@ -15,10 +14,5 @@ class CSVLoader(GenericFileLoader):
         )
 
     @staticmethod
-    def save_result(path: str, result: typing.Any):
-        assert isinstance(result, pandas.DataFrame)
-        result.to_pickle(os.path.join(path, 'main.pickle'))
-
-    @staticmethod
-    def load_result(path: str):
-        return pandas.read_pickle(os.path.join(path, 'main.pickle'))
+    def get_data_format() -> str:
+        return 'pandas-pickle'

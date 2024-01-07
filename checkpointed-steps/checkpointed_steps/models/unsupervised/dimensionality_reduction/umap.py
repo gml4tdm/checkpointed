@@ -1,4 +1,3 @@
-import os
 import typing
 
 import numpy
@@ -9,8 +8,6 @@ from checkpointed_core import PipelineStep
 from checkpointed_core.arg_spec import constraints, arguments
 
 from .... import bases
-
-import pickle
 
 
 class UMAPTraining(checkpointed_core.PipelineStep):
@@ -37,14 +34,8 @@ class UMAPTraining(checkpointed_core.PipelineStep):
         return model.fit(inputs['data'])
 
     @staticmethod
-    def save_result(path: str, result: typing.Any):
-        with open(os.path.join(path, 'main.pickle'), 'wb') as f:
-            pickle.dump(result, f)
-
-    @staticmethod
-    def load_result(path: str):
-        with open(os.path.join(path, 'main.pickle'), 'rb') as f:
-            return pickle.load(f)
+    def get_data_format() -> str:
+        return 'std-pickle'
 
     def get_checkpoint_metadata(self) -> typing.Any:
         return {'seed': self.config.get_casted('params.seed', int)}
@@ -121,12 +112,8 @@ class UMAPTransform(checkpointed_core.PipelineStep, bases.DenseNumericalVectorDa
         return inputs['umap-model'].transform(inputs['data'])
 
     @staticmethod
-    def save_result(path: str, result: typing.Any):
-        numpy.save(os.path.join(path, 'main.npy'), result)
-
-    @staticmethod
-    def load_result(path: str):
-        return numpy.load(os.path.join(path, 'main.npy'))
+    def get_data_format() -> str:
+        return 'numpy-array'
 
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}

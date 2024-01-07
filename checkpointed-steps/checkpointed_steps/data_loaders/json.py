@@ -1,5 +1,4 @@
 import json
-import os
 import typing
 
 from .shared import GenericFileLoader
@@ -13,11 +12,5 @@ class JsonLoader(GenericFileLoader):
             return json.load(file)
 
     @staticmethod
-    def save_result(path: str, result: typing.Any):
-        with open(os.path.join(path, 'main.json'), 'w') as file:
-            json.dump(result, file)
-
-    @staticmethod
-    def load_result(path: str):
-        with open(os.path.join(path, 'main.json'), 'r') as file:
-            return json.load(file)
+    def get_data_format() -> str:
+        return 'std-json'

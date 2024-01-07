@@ -5,6 +5,7 @@ import pickle
 import shutil
 import typing
 
+from . import data_format
 from .checkpoints import CheckpointGraph
 from .handle import PipelineStepHandle
 from .step import PipelineStep
@@ -21,6 +22,8 @@ class ResultStore:
                  output_steps: frozenset[PipelineStepHandle],
                  max_size: int,
                  logger: logging.Logger | None = None):
+        if not data_format.is_initialised():
+            data_format.initialise_format_registry()
         self._output_directory = output_directory
         self._checkpoint_directory = checkpoint_directory
         self._checkpoint_metadata_directory = os.path.join(
@@ -50,7 +53,7 @@ class ResultStore:
                 if not self.have_checkpoint_for(old):
                     continue
                 factory = factories_by_step[new]
-                instance = factory(graph.config_by_step[new])
+                instance = factory(graph.config_by_step[new], self._logger)
                 if instance.checkpoint_is_valid(self.retrieve_metadata(old)):
                     valid_checkpoints.add(old)
             cacheable = graph.update_caching_candidates(candidates, valid_checkpoints)
@@ -63,19 +66,6 @@ class ResultStore:
         os.makedirs(self._checkpoint_metadata_directory, exist_ok=True)
         os.makedirs(self._checkpoint_data_directory, exist_ok=True)
         os.makedirs(self._output_directory, exist_ok=True)
-
-    # def _check_checkpoint_metadata(self,
-    #                                mapping: dict[PipelineStepHandle, PipelineStepHandle],
-    #                                graph: CheckpointGraph) -> dict[PipelineStepHandle, PipelineStepHandle]:
-    #     valid = {}
-    #     for new, old in mapping.items():
-    #         if self.have_checkpoint_for(old):
-    #             # Note the _new_ instance
-    #             instance = graph.factory_types[new](graph.config_by_step[new])
-    #             metadata = self.retrieve_metadata(old)
-    #             if instance.checkpoint_is_valid(metadata):
-    #                 valid[new] = old
-    #     return valid
 
     def _remap_checkpoints(self, mapping: dict[PipelineStepHandle, PipelineStepHandle]):
         filename_mapping = {
@@ -109,17 +99,18 @@ class ResultStore:
               factory: type[PipelineStep],
               value: typing.Any,
               metadata: typing.Any) -> None:
+        formatter = data_format.get_format(factory.get_data_format())
         if handle in self._output_steps:
             # Store result
             filename = self._get_filename(handle, is_output=True)
             if os.path.exists(filename):
                 shutil.rmtree(filename)
             os.makedirs(filename)
-            factory.save_result(filename, value)
+            formatter.store(filename, value)
         # Store checkpoint
         filename = self._get_filename(handle)
         os.makedirs(filename)
-        factory.save_result(filename, value)
+        formatter.store(filename, value)
         # Store metadata
         with open(self._get_metadata_filename(handle), 'w') as file:
             json.dump(metadata, file)
@@ -128,7 +119,8 @@ class ResultStore:
                  handle: PipelineStepHandle,
                  factory: type[PipelineStep]) -> typing.Any:
         filename = self._get_filename(handle)
-        return factory.load_result(filename)
+        formatter = data_format.get_format(factory.get_data_format())
+        return formatter.load(filename)
 
     def retrieve_metadata(self, handle: PipelineStepHandle):
         with open(self._get_metadata_filename(handle), 'r') as file:
@@ -139,6 +131,9 @@ class ResultStore:
             os.path.exists(self._get_filename(handle)) and
             os.path.exists(self._get_metadata_filename(handle))
         )
+
+    def get_checkpoint_filename_for(self, handle: PipelineStepHandle) -> str:
+        return self._get_filename(handle)
 
     def _get_filename(self,
                       handle: PipelineStepHandle,

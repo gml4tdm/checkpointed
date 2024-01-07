@@ -18,12 +18,8 @@ class CWord2VecLoader(GenericFileLoader):
         )
 
     @staticmethod
-    def save_result(path: str, result: typing.Any):
-        result.save_word2vec_format(os.path.join(path, 'main.bin'), binary=True)
-
-    @staticmethod
-    def load_result(path: str):
-        return KeyedVectors.load_word2vec_format(os.path.join(path, 'main.bin'), binary=True)
+    def get_data_format() -> str:
+        return 'gensim-c-word2vec'
 
     @classmethod
     def get_arguments(cls) -> dict[str, arguments.Argument]:
@@ -44,12 +40,8 @@ class GensimWord2VecLoader(GenericFileLoader):
         )
 
     @staticmethod
-    def save_result(path: str, result: typing.Any):
-        result.wv.save_word2vec_format(path, binary=True)
-
-    @staticmethod
-    def load_result(path: str):
-        return KeyedVectors.load_word2vec_format(path, binary=True)
+    def get_data_format() -> str:
+        return 'gensim-word2vec'
 
     @classmethod
     def get_arguments(cls) -> dict[str, arguments.Argument]:

@@ -1,5 +1,4 @@
 import itertools
-import os
 import typing
 
 import checkpointed_core
@@ -7,8 +6,6 @@ from checkpointed_core import PipelineStep
 from checkpointed_core.arg_spec import constraints, arguments
 
 from ... import bases
-
-import pickle
 
 
 class Flattened(checkpointed_core.PipelineStep, bases.FlattenedTokenizedDocumentSource):
@@ -31,14 +28,8 @@ class Flattened(checkpointed_core.PipelineStep, bases.FlattenedTokenizedDocument
         ]
 
     @staticmethod
-    def save_result(path: str, result: typing.Any):
-        with open(os.path.join(path, 'main.pickle'), 'wb') as file:
-            pickle.dump(result, file)
-
-    @staticmethod
-    def load_result(path: str):
-        with open(os.path.join(path, 'main.pickle'), 'rb') as file:
-            return pickle.load(file)
+    def get_data_format() -> str:
+        return 'std-pickle'
 
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}

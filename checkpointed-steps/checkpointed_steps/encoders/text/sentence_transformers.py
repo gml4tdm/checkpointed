@@ -1,7 +1,5 @@
-import os
 import typing
 
-import numpy
 from sentence_transformers import SentenceTransformer
 
 import checkpointed_core
@@ -30,12 +28,8 @@ class SentenceTransformersDocumentEncoder(checkpointed_core.PipelineStep, bases.
         return model.encode(inputs['documents'], convert_to_tensor=True, show_progress_bar=True)
 
     @staticmethod
-    def save_result(path: str, result: typing.Any):
-        numpy.save(os.path.join(path, 'main.npy'), result)
-
-    @staticmethod
-    def load_result(path: str):
-        return numpy.load(os.path.join(path, 'main.npy'))
+    def get_data_format() -> str:
+        return 'numpy-array'
 
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}

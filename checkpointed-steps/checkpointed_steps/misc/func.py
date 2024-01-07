@@ -3,8 +3,6 @@ from __future__ import annotations
 import abc
 import hashlib
 import inspect
-import os
-import pickle
 
 import types
 import typing
@@ -14,34 +12,12 @@ from checkpointed_core import PipelineStep
 from checkpointed_core.arg_spec import constraints as _constraints
 from checkpointed_core.arg_spec import arguments as _arguments
 
-__all__ = ['pipeline_step', 'pickle_loader', 'pickle_saver', 'json_saver', 'json_loader']
+__all__ = ['pipeline_step']
 
-import json
-
-
-def pickle_saver(path: str, result: typing.Any):
-    with open(os.path.join(path, 'main.pickle'), 'wb') as file:
-        pickle.dump(result, file)
-
-
-def pickle_loader(path: str):
-    with open(os.path.join(path, 'main.pickle'), 'rb') as file:
-        return pickle.load(file)
-
-
-def json_saver(path: str, result: typing.Any):
-    with open(os.path.join(path, 'main.json'), 'w') as file:
-        file.write(json.dumps(result))
-
-
-def json_loader(path: str):
-    with open(os.path.join(path, 'main.json'), 'r') as file:
-        return json.loads(file.read())
 
 
 def pipeline_step(*,
-                  save_func,
-                  load_func,
+                  save_data_format: str,
                   supported_input_steps,
                   marker_classes,
                   is_pure=False,
@@ -71,8 +47,7 @@ def pipeline_step(*,
             (FunctionStepBase,) + tuple(marker_classes),
             {
                 '$_function': func,
-                '$_save_function': save_func,
-                '$_load_function': load_func,
+                '$_data_format': save_data_format,
                 '$_pure': is_pure,
                 '$_arguments': arguments if arguments is not None else {},
                 '$_constraints': constraints if constraints is not None else [],
@@ -107,14 +82,8 @@ class FunctionStepBase(checkpointed_core.PipelineStep, abc.ABC):
         return function(self.config, **inputs)
 
     @classmethod
-    def save_result(cls, path: str, result: typing.Any):
-        function = getattr(cls, '$_save_function')
-        function(path, result)
-
-    @classmethod
-    def load_result(cls, path: str):
-        function = getattr(cls, '$_load_function')
-        return function(path)
+    def get_data_format(cls) -> str:
+        return getattr(cls, '$_data_format')
 
     def get_checkpoint_metadata(self) -> typing.Any:
         return {

@@ -10,7 +10,8 @@ checkpoints
 out
 resources
 testing.py
-install.cmd 
+install.cmd
+run.cmd
 
 *.pyc
 *.csv

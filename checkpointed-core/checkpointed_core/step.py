@@ -1,15 +1,44 @@
 from __future__ import annotations
 
 import abc
+import logging
 import typing
 
 from . import arg_spec
+from .arg_spec import core
 
 
 class PipelineStep(arg_spec.ArgumentConsumer, abc.ABC):
 
-    def __init__(self, config):
+    def __init__(self, config: dict[str, typing.Any], logger: logging.Logger):
         self.config = self.parse_arguments(config)
+        self.logger = logger
+        self._input_storage_formats: dict[str, str] | None = None
+        self._execution_context: core.Config | None = None
+
+    @property
+    def execution_context(self) -> core.Config:
+        if self._execution_context is None:
+            raise ValueError("Execution context not set")
+        return self._execution_context
+
+    @execution_context.setter
+    def execution_context(self, context: core.Config):
+        if self._execution_context is not None:
+            raise ValueError("Execution context already set")
+        self._execution_context = context
+
+    @property
+    def input_storage_formats(self) -> dict[str, str]:
+        if self._input_storage_formats is None:
+            raise ValueError("Input storage formats not set")
+        return self._input_storage_formats
+
+    @input_storage_formats.setter
+    def input_storage_formats(self, formats: dict[str, str]):
+        if self._input_storage_formats is not None:
+            raise ValueError("Input storage formats already set")
+        self._input_storage_formats = formats
 
     @classmethod
     @abc.abstractmethod
@@ -28,12 +57,7 @@ class PipelineStep(arg_spec.ArgumentConsumer, abc.ABC):
 
     @staticmethod
     @abc.abstractmethod
-    def save_result(path: str, result: typing.Any):
-        pass
-
-    @staticmethod
-    @abc.abstractmethod
-    def load_result(path: str):
+    def get_data_format() -> str:
         pass
 
     @abc.abstractmethod

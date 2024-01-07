@@ -18,6 +18,10 @@ class PipelineStepHandle:
             return f'Step<{self._uid}:{self._name}>'
         return f'Step<{self._uid}>'
 
+    @property
+    def name(self) -> str | None:
+        return self._name
+
     def get_raw_identifier(self) -> int:
         return self._uid
 

@@ -1,6 +1,4 @@
 import itertools
-import os
-import pickle
 import typing
 
 import checkpointed_core
@@ -30,14 +28,8 @@ class GenerateWordToIndexDictionary(checkpointed_core.PipelineStep, bases.WordIn
         return word_index_mapping
 
     @staticmethod
-    def save_result(path: str, result: typing.Any):
-        with open(os.path.join(path, 'main.pickle'), 'wb') as file:
-            pickle.dump(result, file)
-
-    @staticmethod
-    def load_result(path: str):
-        with open(os.path.join(path, 'main.pickle'), 'rb') as file:
-            return pickle.load(file)
+    def get_data_format() -> str:
+        return 'std-pickle'
 
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}

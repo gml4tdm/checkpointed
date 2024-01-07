@@ -88,7 +88,7 @@ class CheckpointGraph:
     def _inputs_are_valid(self,
                           x, _y,
                           mapping: dict[PipelineStepHandle, PipelineStepHandle],
-                          cacheable: dict[PipelineStepHandle, PipelineStepHandle]) -> bool:
+                          cacheable: set[tuple[PipelineStepHandle, PipelineStepHandle]]) -> bool:
         for z in self.incoming_per_handle[x].values():
             if (z, mapping[z]) not in cacheable:
                 return False

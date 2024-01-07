@@ -1,9 +1,11 @@
 import abc
+import os
 import typing
 
+from .arg_spec import constraints, arguments
 from .pipeline import Pipeline
 from .step import PipelineStep
-from .arg_spec import arguments, constraints
+from .handle import PipelineStepHandle
 
 
 class ScatterGather(abc.ABC, PipelineStep):
@@ -23,35 +25,69 @@ class ScatterGather(abc.ABC, PipelineStep):
         self._output_directory = output_directory
 
     async def execute(self, **inputs) -> typing.Any:
-        streams = await self.scatter(**inputs)
-        results = {}
-        return await self.gather(**results)
+        groups = self.scatter(**inputs)
+        # TODO: build pipeline
+        # TODO: sessions in executor
+        # TODO: add inputs per step
+        # TODO: result_store register child store
+        template_pipeline, config = self.get_inner_pipeline()
+        pipeline = Pipeline(template_pipeline.pipeline_name)
+        inputs_per_step = {}
+        output_steps_to_groups = {}
+        plan = pipeline.build(config, logger=self.logger)
+        results_per_group = await plan.execute_async(
+            output_directory=os.path.join(
+                self._output_directory, 'nested'
+            ),
+            checkpoint_directory=os.path.join(
+                self._checkpoint_directory, 'nested'
+            ),
+            __return_values=set(output_steps_to_groups.keys())
+        )
+        return self.gather(
+            **{output_steps_to_groups[k]: v
+               for k, v in results_per_group.items()}
+        )
 
     @abc.abstractmethod
-    def get_scatter(self) -> PipelineStep:
+    def scatter(self, **inputs) -> dict[str, typing.Any]:
         pass
 
     @abc.abstractmethod
-    def get_inner_pipeline(self) -> Pipeline:
+    def get_inner_pipeline(self) -> tuple[Pipeline, dict[PipelineStepHandle, dict[str, typing.Any]]]:
         pass
 
     @abc.abstractmethod
-    def get_gather(self) -> PipelineStep:
+    def gather(self, **results) -> typing.Any:
         pass
 
+    def get_checkpoint_metadata(self) -> typing.Any:
+        return {}
 
-class _ScatterLoadAdapter(PipelineStep):
+    def checkpoint_is_valid(self, metadata: typing.Any) -> bool:
+        # A scatter/gather operation cannot be validated,
+        # because its validity depends on the validity of
+        # all steps in the inner pipeline.
+        # However, generally,  a scatter/gather operation
+        # is computationally cheap;
+        # The overhead incurred should be minimal,
+        # especially since steps in the inner pipeline
+        # can still be cached.
+        return False
+
+
+class ScatterGatherInput(PipelineStep):
 
     @classmethod
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        pass
+        return True
 
     @staticmethod
     def get_input_labels() -> list[str | type(...)]:
-        pass
+        return [...]
 
     async def execute(self, **inputs) -> typing.Any:
-        pass
+        return inputs
 
     @staticmethod
     def save_result(path: str, result: typing.Any):

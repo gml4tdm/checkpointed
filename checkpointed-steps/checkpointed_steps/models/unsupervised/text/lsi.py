@@ -1,5 +1,3 @@
-import json
-import os
 import typing
 
 from gensim.models.lsimodel import LsiModel as _LsiModel
@@ -35,12 +33,8 @@ class LsiModel(checkpointed_core.PipelineStep):
         return model
 
     @staticmethod
-    def save_result(path: str, result: typing.Any):
-        result.save(os.path.join(path, 'main.bin'))
-
-    @staticmethod
-    def load_result(path: str):
-        return _LsiModel.load(os.path.join(path, 'main.bin'))
+    def get_data_format() -> str:
+        return 'gensim-lsi'
 
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}
@@ -95,14 +89,8 @@ class ExtractLsiTopics(checkpointed_core.PipelineStep):
         }
 
     @staticmethod
-    def save_result(path: str, result: typing.Any):
-        with open(os.path.join(path, 'main.json'), 'w') as file:
-            json.dump(result, file)
-
-    @staticmethod
-    def load_result(path: str):
-        with open(os.path.join(path, 'main.json'), 'r') as file:
-            return json.load(file)
+    def get_data_format() -> str:
+        return 'std-json'
 
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}

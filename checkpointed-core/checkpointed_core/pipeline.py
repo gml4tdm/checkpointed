@@ -1,5 +1,6 @@
 from __future__ import annotations
 import collections
+import dataclasses
 import graphlib
 import itertools
 import logging
@@ -18,6 +19,23 @@ def _powerset(x):
     )
 
 
+@dataclasses.dataclass(frozen=True)
+class PipelineNode:
+    name: str | None
+    handle: PipelineStepHandle
+    factory: type[_step.PipelineStep]
+    is_input: bool
+    is_output: bool
+    output_filename: str | None = None
+
+
+@dataclasses.dataclass(frozen=True)
+class PipelineConnection:
+    source: PipelineStepHandle
+    target: PipelineStepHandle
+    label: str
+
+
 class Pipeline:
 
     def __init__(self, name: str):
@@ -28,6 +46,32 @@ class Pipeline:
         self._inputs = set()
         self._outputs = set()
         self._output_files = {}
+
+    @property
+    def pipeline_name(self) -> str:
+        return self._name
+
+    @property
+    def nodes(self) -> typing.Iterator[PipelineNode]:
+        for handle, factory in self._steps.items():
+            yield PipelineNode(
+                name=handle.name,
+                handle=handle,
+                factory=factory,
+                is_input=handle in self._inputs,
+                is_output=handle in self._outputs,
+                output_filename=self._output_files.get(handle)
+            )
+
+    @property
+    def connections(self) -> typing.Iterator[PipelineConnection]:
+        for source, targets in self._connections.items():
+            for target in targets:
+                yield PipelineConnection(
+                    source=source,
+                    target=target,
+                    label=self._connections_types[(source, target)]
+                )
 
     def add_source(self,
                    factory: type[_step.PipelineStep], *,
@@ -43,8 +87,8 @@ class Pipeline:
             self._output_files[handle] = filename
         return handle
 
-    def add_sink(self
-                 , factory: type[_step.PipelineStep], *,
+    def add_sink(self,
+                 factory: type[_step.PipelineStep], *,
                  filename: str,
                  name: None | str = None) -> PipelineStepHandle:
         handle = self.add_step(factory, name=name)
