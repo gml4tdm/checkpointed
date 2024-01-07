@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import typing
 
 from .arg_spec import core
 from .handle import PipelineStepHandle
@@ -23,17 +24,29 @@ class TaskExecutor:
         self._active = set()
         self._done = set()
 
-    def run(self,
+    def run(self, *,
             result_store: ResultStore,
             config_by_step: dict[PipelineStepHandle, dict],
+            preloaded_inputs_by_step: dict[PipelineStepHandle, dict[str, typing.Any]],
             logger: logging.Logger) -> None:
-        self._loop.run_until_complete(self._run(result_store, config_by_step, logger))
+        self._loop.run_until_complete(
+            self._run(result_store=result_store,
+                      config_by_step=config_by_step,
+                      preloaded_inputs_by_step=preloaded_inputs_by_step,
+                      logger=logger)
+        )
 
-    async def run_async(self,
+    async def run_async(self, *,
                         result_store: ResultStore,
                         config_by_step: dict[PipelineStepHandle, dict],
+                        preloaded_inputs_by_step: dict[PipelineStepHandle, dict[str, typing.Any]],
                         logger: logging.Logger) -> None:
-        await asyncio.wait([self._run(result_store, config_by_step, logger)])
+        await asyncio.wait([
+            self._run(result_store=result_store,
+                      config_by_step=config_by_step,
+                      preloaded_inputs_by_step=preloaded_inputs_by_step,
+                      logger=logger),
+        ])
 
     @staticmethod
     def _get_config_factory() -> core.ConfigFactory:
@@ -41,22 +54,28 @@ class TaskExecutor:
         config_factory.register_namespace('system')
         config_factory.register_namespace('system.step')
         config_factory.register_namespace('system.step.storage')
-        #config_factory.register('system.step.is-output-step')
+        # config_factory.register('system.step.is-output-step')
         config_factory.register('system.step.storage.current-checkpoint-directory')
-        #config_factory.register('system.step.storage.current-output-directory')
+        config_factory.register('system.step.handle')
+        # config_factory.register('system.step.storage.current-output-directory')
         config_factory.register_namespace('system.executor')
-        #config_factory.register('system.executor.resource-manager')    # maybe in the future
+        # config_factory.register('system.executor.resource-manager')    # maybe in the future
         config_factory.register('system.executor.storage-manager')
         return config_factory
 
-    async def _run(self,
+    async def _run(self, *,
                    result_store: ResultStore,
                    config_by_step: dict[PipelineStepHandle, dict],
+                   preloaded_inputs_by_step: dict[PipelineStepHandle, dict[str, typing.Any]],
                    logger: logging.Logger):
         config_factory = self._get_config_factory()
         while self._pending or self._blocked or self._active:
             self._unblock_tasks(logger)
-            self._start_pending_tasks(result_store, config_by_step, config_factory, logger)
+            self._start_pending_tasks(result_store,
+                                      config_by_step,
+                                      preloaded_inputs_by_step,
+                                      config_factory,
+                                      logger)
             done, self._active = await asyncio.wait(self._active, return_when=asyncio.FIRST_COMPLETED)
             for data in done:
                 result, handle, factory = data.result()
@@ -73,6 +92,7 @@ class TaskExecutor:
     def _start_pending_tasks(self,
                              result_store: ResultStore,
                              config_by_step: dict[PipelineStepHandle, dict],
+                             preloaded_inputs_by_step: dict[PipelineStepHandle, dict[str, typing.Any]],
                              config_factory: core.ConfigFactory,
                              logger: logging.Logger):
         while self._pending:
@@ -81,10 +101,18 @@ class TaskExecutor:
             args = {}
             input_formats = {}
             for handle, factory, name in task.inputs:
-                logger.info(f'Loading input {name} ({handle}, type {factory.__name__}) for task {task.step}')
-                args[name] = result_store.retrieve(handle, factory)
-                input_formats[name] = factory.get_data_format()
+                if name not in preloaded_inputs_by_step[task.step]:
+                    logger.info(f'Loading input {name} ({handle}, type {factory.__name__}) '
+                                f'for task {task.step}')
+                    args[name] = result_store.retrieve(handle, factory)
+                    input_formats[name] = factory.get_data_format()
+                else:
+                    logger.info(f'Loading input {name} ({handle}, type {factory.__name__}) '
+                                f'for task {task.step} from preloaded inputs')
+                    args[name] = preloaded_inputs_by_step[task.step][name]
+                    input_formats[name] = factory.get_data_format()
             config = config_factory.build_config('system')
+            config.set('system.step.handle', task.step)
             config.set(
                 'system.step.storage.current-checkpoint-directory',
                 result_store.get_checkpoint_filename_for(task.step)
@@ -100,7 +128,7 @@ class TaskExecutor:
                               _inputs=tuple(args.items())):
                 logger.info(f'[{_handle}] Running task')
                 have_result = False
-                result = None   # Just get the IDE to shut up
+                result = None  # Just get the IDE to shut up
                 if result_store.have_checkpoint_for(_handle):
                     logger.info(f'[{_handle}] Loading result from checkpoint')
                     result = result_store.retrieve(_handle, _factory)

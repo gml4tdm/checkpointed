@@ -47,32 +47,29 @@ class ExecutionPlan:
             file_by_step=self._output_files,
             factories_by_step=self._steps,
             output_steps=self._outputs,
-            max_size=0,
             graph=self._graph,
             logger=self._logger
         )
         task_executor = executor.TaskExecutor(self._instructions)
-        task_executor.run(result_store, self._config_by_step, self._logger)
+        task_executor.run(result_store=result_store,
+                          config_by_step=self._config_by_step,
+                          preloaded_inputs_by_step={},
+                          logger=self._logger)
         if __return_values is not None:
             return {step: result_store.retrieve(step, self._steps[step])
                     for step in __return_values}
 
     async def execute_async(self, *,
-                            output_directory='',
-                            checkpoint_directory='',
+                            result_store: store.ResultStore,
+                            precomputed_inputs_by_step: dict[PipelineStepHandle, dict[str, typing.Any]] | None = None,
                             __return_values=None):
-        result_store = store.ResultStore(
-            output_directory=os.path.join(output_directory, self._name),
-            checkpoint_directory=os.path.join(checkpoint_directory, self._name),
-            file_by_step=self._output_files,
-            factories_by_step=self._steps,
-            output_steps=self._outputs,
-            max_size=0,
-            graph=self._graph,
-            logger=self._logger
-        )
+        if precomputed_inputs_by_step is None:
+            precomputed_inputs_by_step = {}
         task_executor = executor.TaskExecutor(self._instructions)
-        await task_executor.run_async(result_store, self._config_by_step, self._logger)
+        await task_executor.run_async(result_store=result_store,
+                                      config_by_step=self._config_by_step,
+                                      preloaded_inputs_by_step=precomputed_inputs_by_step,
+                                      logger=self._logger)
         if __return_values is not None:
             return {step: result_store.retrieve(step, self._steps[step])
                     for step in __return_values}

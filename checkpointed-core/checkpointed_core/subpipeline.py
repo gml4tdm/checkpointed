@@ -12,24 +12,10 @@ class ScatterGather(abc.ABC, PipelineStep):
 
     def __init__(self, config):
         super().__init__(config)
-        self._checkpoint_directory = None
-        self._output_directory = None
-
-    def set_storage_directories(self,
-                                checkpoint_directory: str,
-                                output_directory: str):
-        # Special-cases method in the pipeline;
-        # required to propagate storage locations
-        # to nested pipelines
-        self._checkpoint_directory = checkpoint_directory
-        self._output_directory = output_directory
 
     async def execute(self, **inputs) -> typing.Any:
         groups = self.scatter(**inputs)
         # TODO: build pipeline
-        # TODO: sessions in executor
-        # TODO: add inputs per step
-        # TODO: result_store register child store
         template_pipeline, config = self.get_inner_pipeline()
         pipeline = Pipeline(template_pipeline.pipeline_name)
         inputs_per_step = {}
@@ -42,6 +28,7 @@ class ScatterGather(abc.ABC, PipelineStep):
             checkpoint_directory=os.path.join(
                 self._checkpoint_directory, 'nested'
             ),
+            precomputed_inputs_by_step=inputs_per_step,
             __return_values=set(output_steps_to_groups.keys())
         )
         return self.gather(

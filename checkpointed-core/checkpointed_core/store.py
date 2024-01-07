@@ -15,12 +15,11 @@ class ResultStore:
 
     def __init__(self, *,
                  graph: CheckpointGraph,
-                 output_directory: str,
+                 output_directory: str | None,
                  checkpoint_directory: str,
                  file_by_step: dict[PipelineStepHandle, str],
                  factories_by_step: dict[PipelineStepHandle, type[PipelineStep]],
                  output_steps: frozenset[PipelineStepHandle],
-                 max_size: int,
                  logger: logging.Logger | None = None):
         if not data_format.is_initialised():
             data_format.initialise_format_registry()
@@ -34,7 +33,6 @@ class ResultStore:
         )
         self._file_by_step = file_by_step
         self._output_steps = output_steps
-        self._max_size = max_size
         if logger is None:
             self._logger = logging.getLogger()
         else:
@@ -60,6 +58,23 @@ class ResultStore:
             self._remap_checkpoints(cacheable)
         with open(self._graph_file, 'wb') as f:
             pickle.dump(graph, f)
+
+    def sub_storage(self,
+                    parent_handle: PipelineStepHandle, *,
+                    graph: CheckpointGraph,
+                    factories_by_step: dict[PipelineStepHandle, type[PipelineStep]]) -> typing.Self:
+        nested_checkpoint_directory = os.path.join(
+            self._get_filename(parent_handle), 'nested'
+        )
+        return ResultStore(
+            graph=graph,
+            output_directory=None,
+            checkpoint_directory=nested_checkpoint_directory,
+            file_by_step={},
+            factories_by_step=factories_by_step,
+            output_steps=frozenset(),
+            logger=self._logger
+        )
 
     def _make_directories(self):
         os.makedirs(self._checkpoint_directory, exist_ok=True)
@@ -139,6 +154,11 @@ class ResultStore:
                       handle: PipelineStepHandle,
                       *, is_output=False) -> str:
         if is_output:
+            if self._output_directory is None:
+                raise ValueError(
+                    "Output directory is not set "
+                    "(trying to save the result of a sub-pipeline as output?)"
+                )
             return os.path.join(
                 self._output_directory,
                 self._file_by_step[handle]
