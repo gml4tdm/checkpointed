@@ -38,6 +38,17 @@ class TokenizedDocumentSource:
     """
 
 
+class PartOfSpeechTokenizedDocumentSource:
+    """Base class for all steps that return tokenized documents
+    with part of speech tags attached.
+    
+    Result type: list[list[list[tuple[str, str]]]
+    
+    Here, the first entry is the word itself, and the second 
+    tuple entry is the POS tag as returned by NLTK.
+    """
+
+
 class FlattenedTokenizedDocumentSource:
     """Base class for all steps that return
     flattened tokenized documents.
