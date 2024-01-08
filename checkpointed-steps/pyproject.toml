@@ -23,5 +23,6 @@ dependencies = [
     "transformers",
     "sentence-transformers",
     "umap-learn",
-    "hdbscan"
+    "hdbscan",
+    "matplotlib"
 ]

@@ -38,6 +38,7 @@ def register_formats():
     data_format.register_format('gensim-lsi', GensimLsiFormat)
     data_format.register_format('pandas-pickle', PandasPickleFormat)
     data_format.register_format('scipy-sparse-matrix', ScipySparseFormat)
+    data_format.register_format('matplotlib-png', MatplotlibPng)
 
 
 def format_from_functions(name: str, *,
@@ -216,3 +217,15 @@ class ScipySparseFormat(DataFormat):
     @staticmethod
     def load(path: str) -> typing.Any:
         return scipy.sparse.load_npz(os.path.join(path, 'main.npz'))
+
+
+class MatplotlibPng(DataFormat):
+
+    @staticmethod
+    def store(path: str, data: typing.Any):
+        fig, axes = data
+        fig.savefig(os.path.join(path, 'main.png'))
+
+    @staticmethod
+    def load(path: str) -> typing.Any:
+        raise NotImplementedError(f'Cannot load image {path}')
