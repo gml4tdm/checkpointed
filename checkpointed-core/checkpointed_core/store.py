@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -62,7 +64,7 @@ class ResultStore:
     def sub_storage(self,
                     parent_handle: PipelineStepHandle, *,
                     graph: CheckpointGraph,
-                    factories_by_step: dict[PipelineStepHandle, type[PipelineStep]]) -> typing.Self:
+                    factories_by_step: dict[PipelineStepHandle, type[PipelineStep]]) -> ResultStore:
         nested_checkpoint_directory = os.path.join(
             self._get_filename(parent_handle), 'nested'
         )

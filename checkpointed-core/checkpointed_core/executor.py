@@ -101,7 +101,7 @@ class TaskExecutor:
             args = {}
             input_formats = {}
             for handle, factory, name in task.inputs:
-                if name not in preloaded_inputs_by_step[task.step]:
+                if name not in preloaded_inputs_by_step.get(task.step, {}):
                     logger.info(f'Loading input {name} ({handle}, type {factory.__name__}) '
                                 f'for task {task.step}')
                     args[name] = result_store.retrieve(handle, factory)
