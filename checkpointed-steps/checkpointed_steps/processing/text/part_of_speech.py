@@ -1,10 +1,13 @@
 import typing
 
 import nltk
+
 try:
     nltk.find('taggers/averaged_perceptron_tagger')
 except LookupError:
     nltk.download('averaged_perceptron_tagger')
+
+from nltk.tag.perceptron import PerceptronTagger
 
 import checkpointed_core
 from checkpointed_core import PipelineStep
@@ -26,8 +29,12 @@ class PartOfSpeechTagging(checkpointed_core.PipelineStep, bases.PartOfSpeechToke
         return ['documents']
 
     async def execute(self, **inputs) -> typing.Any:
+        # See https://www.nltk.org/_modules/nltk/tag.html#pos_tag
+        # for the source of pos_tag;
+        # We use the same tagger for all documents to save time.
+        tagger = PerceptronTagger()
         return [
-            [nltk.tag.pos_tag(sent) for sent in document]
+            [tagger.tag(sent) for sent in document]
             for document in inputs['documents']
         ]
 

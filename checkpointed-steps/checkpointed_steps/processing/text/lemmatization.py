@@ -3,7 +3,7 @@ import typing
 import nltk
 
 try:
-    nltk.find('corpora/wordnet')
+    nltk.find('corpora/wordnet.zip')
 except LookupError:
     nltk.download('wordnet')
 
