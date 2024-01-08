@@ -1,5 +1,12 @@
 import typing
 
+import nltk
+
+try:
+    nltk.find('corpora/wordnet')
+except LookupError:
+    nltk.download('wordnet')
+
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
 
@@ -10,12 +17,33 @@ from checkpointed_core.arg_spec import constraints, arguments
 from ... import bases
 
 
+POS_CONVERSION = {
+    "JJ": "a",
+    "JJR": "a",
+    "JJS": "a",
+    "NN": "n",
+    "NNS": "n",
+    "NNP": "n",
+    "NNPS": "n",
+    "RB": "r",
+    "RBR": "r",
+    "RBS": "r",
+    "VB": "v",
+    "VBD": "v",
+    "VBG": "v",
+    "VBN": "v",
+    "VBP": "v",
+    "VBZ": "v",
+    "WRB": "r",
+}
+
+
 class Lemmatization(checkpointed_core.PipelineStep, bases.PartOfSpeechTokenizedDocumentSource):
 
     @classmethod
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
         if label == 'documents':
-            return isinstance(step, bases.PartOfSpeechTokenizedDocumentSource)
+            return issubclass(step, bases.PartOfSpeechTokenizedDocumentSource)
         return super(cls, cls).supports_step_as_input(step, label)
 
     @staticmethod
@@ -24,23 +52,13 @@ class Lemmatization(checkpointed_core.PipelineStep, bases.PartOfSpeechTokenizedD
 
     @staticmethod
     def _map_tag(tag: str) -> str | None:
-        # based on https://www.holisticseo.digital/python-seo/nltk/lemmatize
-        if tag.startswith('J'):
-            return wordnet.ADJ
-        elif tag.startswith('V'):
-            return wordnet.VERB
-        elif tag.startswith('N'):
-            return wordnet.NOUN
-        elif tag.startswith('R'):
-            return wordnet.ADV
-        else:
-            return None
+        return POS_CONVERSION.get(tag, 'n')
 
     async def execute(self, **inputs) -> typing.Any:
         lemmatizer = WordNetLemmatizer()
         return [
             [
-                [lemmatizer.lemmatize(word, pos=self._map_tag(tag)) for word, tag in sentence]
+                [(lemmatizer.lemmatize(word, pos=self._map_tag(tag)), tag) for word, tag in sentence]
                 for sentence in document
             ]
             for document in inputs['documents']

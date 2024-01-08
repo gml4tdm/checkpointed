@@ -1,6 +1,10 @@
 import typing
 
 import nltk
+try:
+    nltk.find('taggers/averaged_perceptron_tagger')
+except LookupError:
+    nltk.download('averaged_perceptron_tagger')
 
 import checkpointed_core
 from checkpointed_core import PipelineStep
@@ -14,7 +18,7 @@ class PartOfSpeechTagging(checkpointed_core.PipelineStep, bases.PartOfSpeechToke
     @classmethod
     def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
         if label == 'documents':
-            return issubclass(step, bases.TextDocumentSource)
+            return issubclass(step, bases.TokenizedDocumentSource)
         return super(cls, cls).supports_step_as_input(step, label)
 
     @staticmethod
@@ -23,7 +27,7 @@ class PartOfSpeechTagging(checkpointed_core.PipelineStep, bases.PartOfSpeechToke
 
     async def execute(self, **inputs) -> typing.Any:
         return [
-            [nltk.tag.pos_tag(sent) for sent in nltk.tokenize.sent_tokenize(document)]
+            [nltk.tag.pos_tag(sent) for sent in document]
             for document in inputs['documents']
         ]
 
