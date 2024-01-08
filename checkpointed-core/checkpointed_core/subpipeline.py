@@ -16,10 +16,38 @@ class ScatterGather(abc.ABC, PipelineStep):
     async def execute(self, **inputs) -> typing.Any:
         groups = self.scatter(**inputs)
         # TODO: build pipeline
-        template_pipeline, config = self.get_inner_pipeline()
+        template_pipeline, start_node_handle, config = self.get_inner_pipeline()
         pipeline = Pipeline(template_pipeline.pipeline_name)
         inputs_per_step = {}
         output_steps_to_groups = {}
+        for key, value in groups.items():
+            node_mapping = {}
+            for node in template_pipeline.nodes:
+                if node.is_input and node.is_output:
+                    handle = pipeline.add_source(node.factory,
+                                                 is_sink=True,
+                                                 filename=node.output_filename + '__' + key,
+                                                 name=node.name + '-' + key if node.name is not None else None)
+                elif node.is_input:
+                    handle = pipeline.add_source(node.factory,
+                                                 name=node.name + '-' + key if node.name is not None else None)
+                elif node.is_output:
+                    handle = pipeline.add_sink(node.factory,
+                                               filename=node.output_filename + '__' + key,
+                                               name=node.name + '-' + key if node.name is not None else None)
+                else:
+                    handle = pipeline.add_step(node.factory,
+                                               name=node.name + '-' + key if node.name is not None else None)
+                node_mapping[node.handle] = handle
+            for connection in template_pipeline.connections:
+                pipeline.connect(node_mapping[connection.source],
+                                 node_mapping[connection.target],
+                                 connection.label)
+            # TODO: ScatterGather save format
+            # TODO: output steps; each output step
+            #       in the "template pipeline" should be
+            #       gathered individually.
+
         plan = pipeline.build(config, logger=self.logger)
         results_per_group = await plan.execute_async(
             output_directory=os.path.join(
@@ -41,7 +69,7 @@ class ScatterGather(abc.ABC, PipelineStep):
         pass
 
     @abc.abstractmethod
-    def get_inner_pipeline(self) -> tuple[Pipeline, dict[PipelineStepHandle, dict[str, typing.Any]]]:
+    def get_inner_pipeline(self) -> tuple[Pipeline, PipelineStepHandle, dict[PipelineStepHandle, dict[str, typing.Any]]]:
         pass
 
     @abc.abstractmethod
