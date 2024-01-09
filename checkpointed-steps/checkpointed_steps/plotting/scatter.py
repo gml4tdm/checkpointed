@@ -61,7 +61,7 @@ class LabelledScatter(checkpointed_core.PipelineStep):
         return {}
 
     def checkpoint_is_valid(self, metadata: typing.Any) -> bool:
-        return True
+        return False
 
     @classmethod
     def get_arguments(cls) -> dict[str, arguments.Argument]:

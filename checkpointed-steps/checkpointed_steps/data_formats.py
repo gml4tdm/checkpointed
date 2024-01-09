@@ -39,6 +39,7 @@ def register_formats():
     data_format.register_format('pandas-pickle', PandasPickleFormat)
     data_format.register_format('scipy-sparse-matrix', ScipySparseFormat)
     data_format.register_format('matplotlib-png', MatplotlibPng)
+    data_format.register_format('matplotlib-pngs', MatplotlibPngs)
 
 
 def format_from_functions(name: str, *,
@@ -228,4 +229,17 @@ class MatplotlibPng(DataFormat):
 
     @staticmethod
     def load(path: str) -> typing.Any:
+        raise NotImplementedError(f'Cannot load image {path}')
+
+
+class MatplotlibPngs(DataFormat):
+
+    @staticmethod
+    def store(path: str, data: typing.Any):
+        for filename, image in data.items():
+            fig, axes = image
+            fig.savefig(os.path.join(path, filename + '.png'))
+
+    @staticmethod
+    def load(path: str) -> typing:
         raise NotImplementedError(f'Cannot load image {path}')
