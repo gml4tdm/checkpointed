@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import traceback
 import typing
 
 from .arg_spec import core
@@ -41,12 +42,24 @@ class TaskExecutor:
                         config_by_step: dict[PipelineStepHandle, dict],
                         preloaded_inputs_by_step: dict[PipelineStepHandle, dict[str, typing.Any]],
                         logger: logging.Logger) -> None:
-        await asyncio.wait([
-            self._run(result_store=result_store,
-                      config_by_step=config_by_step,
-                      preloaded_inputs_by_step=preloaded_inputs_by_step,
-                      logger=logger),
-        ])
+        # done, pending = await asyncio.wait(
+        #     [
+        #         self._run(result_store=result_store,
+        #                   config_by_step=config_by_step,
+        #                   preloaded_inputs_by_step=preloaded_inputs_by_step,
+        #                   logger=logger)
+        #     ],
+        #     return_when=asyncio.ALL_COMPLETED
+        # )
+        coro = self._run(result_store=result_store,
+                         config_by_step=config_by_step,
+                         preloaded_inputs_by_step=preloaded_inputs_by_step,
+                         logger=logger)
+        wrapped = asyncio.Task(coro, loop=self._loop)
+        await wrapped
+        exc = wrapped.exception()
+        if exc is not None:
+            self._emit_task_error(logger, exc)
 
     @staticmethod
     def _get_config_factory() -> core.ConfigFactory:
@@ -57,7 +70,6 @@ class TaskExecutor:
         # config_factory.register('system.step.is-output-step')
         config_factory.register('system.step.storage.current-checkpoint-directory')
         config_factory.register('system.step.handle')
-        # config_factory.register('system.step.storage.current-output-directory')
         config_factory.register_namespace('system.executor')
         # config_factory.register('system.executor.resource-manager')    # maybe in the future
         config_factory.register('system.executor.storage-manager')
@@ -77,10 +89,29 @@ class TaskExecutor:
                                       config_factory,
                                       logger)
             done, self._active = await asyncio.wait(self._active, return_when=asyncio.FIRST_COMPLETED)
+            exceptions = []
             for data in done:
+                if (exc := data.exception()) is not None:
+                    self._emit_task_error(logger, exc, do_raise=False)
+                    exceptions.append(exc)
                 result, handle, factory = data.result()
                 logger.info(f'Task {handle} finished')
                 self._done.add(handle)
+            if exceptions:
+                logger.error(f'Exceptions occurred. Existing')
+                raise ExceptionGroup('Exceptions occurred in task executor', exceptions)
+
+    def _emit_task_error(self,
+                         logger: logging.Logger,
+                         exc: BaseException, *,
+                         do_raise=True):
+        logger.error(f'Error in task: {exc}')
+        tb = ''.join(
+            traceback.format_exception(type(exc), exc, exc.__traceback__)
+        )
+        logger.error(f'Traceback:\n\n{tb}')
+        if do_raise:
+            raise exc
 
     def _unblock_tasks(self, logger: logging.Logger):
         for task in self._blocked.copy():
@@ -111,6 +142,14 @@ class TaskExecutor:
                                 f'for task {task.step} from preloaded inputs')
                     args[name] = preloaded_inputs_by_step[task.step][name]
                     input_formats[name] = factory.get_data_format()
+            # Special case for scatter gather inputs
+            if getattr(task.factory, '$_is_scatter_gather_input', False):
+                name = 'scatter-gather-input'
+                args[name] = preloaded_inputs_by_step[task.step][name]
+                # The data format is the same of that as the task
+                # factory itself, because a scatter/gather input
+                # is the identity function
+                input_formats[name] = task.factory.get_data_format()
             config = config_factory.build_config('system')
             config.set('system.step.handle', task.step)
             config.set(

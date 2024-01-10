@@ -12,6 +12,8 @@ resources
 testing.py
 install.cmd
 run.cmd
+test.cmd
+scatter_gather_test.py
 
 *.pyc
 *.csv

@@ -37,10 +37,18 @@ class ExecutionPlan:
             logger.addHandler(logging.NullHandler())
         self._logger = logger
 
+    @property
+    def factories_by_step(self) -> dict[PipelineStepHandle, type[PipelineStep]]:
+        return self._steps
+
+    @property
+    def graph(self) -> CheckpointGraph:
+        return self._graph
+
     def execute(self, *,
                 output_directory='',
                 checkpoint_directory='',
-                __return_values: set[PipelineStepHandle] | None = None):
+                _return_values: set[PipelineStepHandle] | None = None):
         result_store = store.ResultStore(
             output_directory=os.path.join(output_directory, self._name),
             checkpoint_directory=os.path.join(checkpoint_directory, self._name),
@@ -55,14 +63,14 @@ class ExecutionPlan:
                           config_by_step=self._config_by_step,
                           preloaded_inputs_by_step={},
                           logger=self._logger)
-        if __return_values is not None:
+        if _return_values is not None:
             return {step: result_store.retrieve(step, self._steps[step])
-                    for step in __return_values}
+                    for step in _return_values}
 
     async def execute_async(self, *,
                             result_store: store.ResultStore,
                             precomputed_inputs_by_step: dict[PipelineStepHandle, dict[str, typing.Any]] | None = None,
-                            __return_values=None):
+                            _return_values=None):
         if precomputed_inputs_by_step is None:
             precomputed_inputs_by_step = {}
         task_executor = executor.TaskExecutor(self._instructions)
@@ -70,6 +78,6 @@ class ExecutionPlan:
                                       config_by_step=self._config_by_step,
                                       preloaded_inputs_by_step=precomputed_inputs_by_step,
                                       logger=self._logger)
-        if __return_values is not None:
+        if _return_values is not None:
             return {step: result_store.retrieve(step, self._steps[step])
-                    for step in __return_values}
+                    for step in _return_values}

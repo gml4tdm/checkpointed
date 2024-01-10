@@ -82,7 +82,8 @@ class ResultStore:
         os.makedirs(self._checkpoint_directory, exist_ok=True)
         os.makedirs(self._checkpoint_metadata_directory, exist_ok=True)
         os.makedirs(self._checkpoint_data_directory, exist_ok=True)
-        os.makedirs(self._output_directory, exist_ok=True)
+        if self._output_directory is not None:
+            os.makedirs(self._output_directory, exist_ok=True)
 
     def _remap_checkpoints(self, mapping: dict[PipelineStepHandle, PipelineStepHandle]):
         filename_mapping = {
@@ -126,7 +127,7 @@ class ResultStore:
             formatter.store(filename, value)
         # Store checkpoint
         filename = self._get_filename(handle)
-        os.makedirs(filename)
+        os.makedirs(filename, exist_ok=True)
         formatter.store(filename, value)
         # Store metadata
         with open(self._get_metadata_filename(handle), 'w') as file:
@@ -157,10 +158,8 @@ class ResultStore:
                       *, is_output=False) -> str:
         if is_output:
             if self._output_directory is None:
-                raise ValueError(
-                    "Output directory is not set "
-                    "(trying to save the result of a sub-pipeline as output?)"
-                )
+                raise ValueError('No output directory is set. '
+                                 'Trying to save the output of a sub-pipeline?')
             return os.path.join(
                 self._output_directory,
                 self._file_by_step[handle]
