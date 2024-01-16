@@ -6,6 +6,7 @@ from .data_store import ResultStore
 from .graph import PipelineGraph
 from .handle import PipelineStepHandle
 from .instructions import Instruction
+from .executor import TaskExecutor
 
 
 class ExecutionPlan:
@@ -29,7 +30,7 @@ class ExecutionPlan:
                 loop: asyncio.AbstractEventLoop | None = None):
         if loop is None:
             loop = asyncio.get_event_loop()
-        loop.run_until_complete(
+        return loop.run_until_complete(
             self.execute_async(
                 output_directory=output_directory,
                 checkpoint_directory=checkpoint_directory,
@@ -57,10 +58,20 @@ class ExecutionPlan:
             graph=self._graph,
             output_directory=output_directory,
             checkpoint_directory=checkpoint_directory,
+            config_by_step=self._config_by_step,
             logger=logger,
         )
-        # TODO:
-        #   - lazy inputs
-        #   - executor
-        #   - checkpointing
-        #   - (maybe) resource manager
+        executor = TaskExecutor(loop)
+        await executor.run_session(
+            instructions=self._instructions,
+            result_store=result_store,
+            config_by_step=self._config_by_step,
+            preloaded_inputs_by_step=_precomputed_inputs,
+            logger=logger
+        )
+        if _return_values is not None:
+            steps = {
+                node.handle: node.factory for node in self._graph.vertices
+            }
+            return {step: result_store.retrieve(step, steps[step])
+                    for step in _return_values}
