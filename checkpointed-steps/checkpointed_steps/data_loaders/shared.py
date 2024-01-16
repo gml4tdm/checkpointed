@@ -3,21 +3,22 @@ import hashlib
 import typing
 
 import checkpointed_core
-from checkpointed_core.arg_spec.constraints import Constraint
-from checkpointed_core.arg_spec.arguments import Argument, StringArgument
+from checkpointed_core.parameters.constraints import Constraint
+from checkpointed_core.parameters.arguments import Argument, StringArgument
 
 from .. import bases
 
 
 class GenericFileLoader(checkpointed_core.PipelineStep, bases.DataLoader, abc.ABC):
 
-    @classmethod
-    def supports_step_as_input(cls, step: type[checkpointed_core.PipelineStep], label: str) -> bool:
-        return super(cls, cls).supports_step_as_input(step, label)
 
-    @staticmethod
-    def get_input_labels() -> list:
-        return []
+    @classmethod
+    def supported_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {}
+
+    @classmethod
+    def supported_streamed_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {}
 
     @classmethod
     def get_arguments(cls) -> dict[str, Argument]:

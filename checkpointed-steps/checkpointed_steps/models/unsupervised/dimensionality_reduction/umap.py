@@ -4,8 +4,7 @@ import numpy
 import umap
 
 import checkpointed_core
-from checkpointed_core import PipelineStep
-from checkpointed_core.arg_spec import constraints, arguments
+from checkpointed_core.parameters import constraints, arguments
 
 from .... import bases
 
@@ -13,14 +12,14 @@ from .... import bases
 class UMAPTraining(checkpointed_core.PipelineStep):
 
     @classmethod
-    def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        if label == 'data':
-            return issubclass(step, bases.NumericalVectorData)
-        return super(cls, cls).supports_step_as_input(step, label)
+    def supported_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {
+            'data': (bases.NumericalVectorData,)
+        }
 
-    @staticmethod
-    def get_input_labels() -> list[str | type(...)]:
-        return ['data']
+    @classmethod
+    def supported_streamed_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {}
 
     async def execute(self, **inputs) -> typing.Any:
         if self.config.get_casted('params.seed', int) != -1:
@@ -33,8 +32,8 @@ class UMAPTraining(checkpointed_core.PipelineStep):
         )
         return model.fit(inputs['data'])
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'std-pickle'
 
     def get_checkpoint_metadata(self) -> typing.Any:
@@ -97,22 +96,21 @@ class UMAPTraining(checkpointed_core.PipelineStep):
 class UMAPTransform(checkpointed_core.PipelineStep, bases.DenseNumericalVectorData):
 
     @classmethod
-    def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        if label == 'data':
-            return issubclass(step, bases.NumericalVectorData)
-        if label == 'umap-model':
-            return issubclass(step, UMAPTraining)
-        return super(cls, cls).supports_step_as_input(step, label)
+    def supported_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {
+            'data': (bases.NumericalVectorData,),
+            'umap-model': (UMAPTraining,)
+        }
 
-    @staticmethod
-    def get_input_labels() -> list[str | type(...)]:
-        return ['data', 'umap-model']
+    @classmethod
+    def supported_streamed_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {}
 
     async def execute(self, **inputs) -> typing.Any:
         return inputs['umap-model'].transform(inputs['data'])
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'numpy-array'
 
     def get_checkpoint_metadata(self) -> typing.Any:

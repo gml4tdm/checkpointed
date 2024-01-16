@@ -3,22 +3,22 @@ import typing
 import hdbscan
 
 import checkpointed_core
-from checkpointed_core import PipelineStep
-from checkpointed_core.arg_spec import constraints, arguments
+from checkpointed_core.parameters import constraints, arguments
 
 from .... import bases
 
 
 class HDBSCAN(checkpointed_core.PipelineStep, bases.LabelAssignment):
-    @classmethod
-    def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        if label == 'data':
-            return issubclass(step, bases.DenseNumericalVectorData)
-        return super(cls, cls).supports_step_as_input(step, label)
 
-    @staticmethod
-    def get_input_labels() -> list[str | type(...)]:
-        return ['data']
+    @classmethod
+    def supported_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {
+            'data': (bases.DenseNumericalVectorData,)
+        }
+
+    @classmethod
+    def supported_streamed_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {}
 
     async def execute(self, **inputs) -> typing.Any:
         if (min_samples := self.config.get_casted('params.min-samples', int)) == -1:
@@ -33,8 +33,8 @@ class HDBSCAN(checkpointed_core.PipelineStep, bases.LabelAssignment):
         clustered = model.fit(inputs['data'])
         return clustered.labels_    # Ignore IDE warnings
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'numpy-array'
 
     def get_checkpoint_metadata(self) -> typing.Any:

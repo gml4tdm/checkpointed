@@ -1,8 +1,7 @@
 import typing
 
 import checkpointed_core
-from checkpointed_core import PipelineStep
-from checkpointed_core.arg_spec import constraints, arguments
+from checkpointed_core.parameters import constraints, arguments
 
 from ... import bases
 from ...processing.text import TermFrequency
@@ -11,18 +10,15 @@ from ...processing.text import TermFrequency
 class CountVectors(checkpointed_core.PipelineStep, bases.DocumentDictEncoder):
 
     @classmethod
-    def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        match label:
-            case 'tf':
-                return issubclass(step, TermFrequency)
-            case 'dictionary':
-                return issubclass(step, bases.WordIndexDictionarySource)
-            case _:
-                return super(cls, cls).supports_step_as_input(step, label)
+    def supported_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {
+            'tf': (TermFrequency,),
+            'dictionary': (bases.WordIndexDictionarySource,)
+        }
 
-    @staticmethod
-    def get_input_labels() -> list:
-        return ['tf', 'dictionary']
+    @classmethod
+    def supported_streamed_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {}
 
     async def execute(self, **inputs) -> typing.Any:
         tf_values = inputs['tf']
@@ -42,8 +38,8 @@ class CountVectors(checkpointed_core.PipelineStep, bases.DocumentDictEncoder):
             result.append(document_result)
         return result
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'std-pickle'
 
     def get_checkpoint_metadata(self) -> typing.Any:

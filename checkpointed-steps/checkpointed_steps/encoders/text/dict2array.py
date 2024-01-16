@@ -5,7 +5,7 @@ import scipy.sparse
 
 import checkpointed_core
 from checkpointed_core import PipelineStep
-from checkpointed_core.arg_spec import constraints, arguments
+from checkpointed_core.parameters import constraints, arguments
 
 from ... import bases
 
@@ -13,16 +13,15 @@ from ... import bases
 class DictToSparseArray(checkpointed_core.PipelineStep, bases.DocumentSparseVectorEncoder):
 
     @classmethod
-    def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        if label == 'document-dicts':
-            return issubclass(step, bases.DocumentDictEncoder)
-        if label == 'word-to-index-dictionary':
-            return issubclass(step, bases.WordIndexDictionarySource)
-        return super(cls, cls).supports_step_as_input(step, label)
+    def supported_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {
+            'document-dicts': (bases.DocumentDictEncoder,),
+            'word-to-index-dictionary': (bases.WordIndexDictionarySource,)
+        }
 
-    @staticmethod
-    def get_input_labels() -> list:
-        return ['document-dicts', 'word-to-index-dictionary']
+    @classmethod
+    def supported_streamed_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {}
 
     async def execute(self, **inputs) -> typing.Any:
         word_to_index = inputs['word-to-index-dictionary']
@@ -40,8 +39,8 @@ class DictToSparseArray(checkpointed_core.PipelineStep, bases.DocumentSparseVect
                     raise ValueError(f'Dictionary has no entry for word: {token}')
         return scipy.sparse.csr_array((data, (row_ind, col_ind)))
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'scipy-sparse-matrix'
 
     def get_checkpoint_metadata(self) -> typing.Any:

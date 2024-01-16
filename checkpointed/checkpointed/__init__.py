@@ -1,5 +1,5 @@
 from checkpointed_core import Pipeline, PipelineStep, PipelineStepHandle, ExecutionPlan
-from checkpointed_core.arg_spec import arguments, constraints
+from checkpointed_core.parameters import arguments, constraints
 import checkpointed_steps as steps
 
 __all__ = [

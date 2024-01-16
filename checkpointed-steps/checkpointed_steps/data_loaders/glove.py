@@ -14,6 +14,6 @@ class GloveLoader(GenericFileLoader):
         glove2word2vec(self.config.get_casted('params.filename', str), temp_file)
         return KeyedVectors.load_word2vec_format(temp_file)
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'gensim-word2vec'

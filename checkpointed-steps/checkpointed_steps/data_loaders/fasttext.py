@@ -11,6 +11,6 @@ class FastTextLoader(GenericFileLoader):
         assert len(inputs) == 0
         return FastText.load(self.config.get_casted('params.filename', str))
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'gensim-fasttext'

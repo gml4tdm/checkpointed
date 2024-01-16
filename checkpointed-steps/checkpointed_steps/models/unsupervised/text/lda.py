@@ -4,8 +4,7 @@ from gensim.models.ldamulticore import LdaMulticore
 from gensim.matutils import Sparse2Corpus
 
 import checkpointed_core
-from checkpointed_core import PipelineStep
-from checkpointed_core.arg_spec import constraints, arguments
+from checkpointed_core.parameters import constraints, arguments
 
 from .... import bases
 
@@ -13,16 +12,15 @@ from .... import bases
 class LdaModel(checkpointed_core.PipelineStep):
 
     @classmethod
-    def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        if label == 'documents-matrix':
-            return issubclass(step, bases.DocumentSparseVectorEncoder)
-        if label == 'dictionary':
-            return issubclass(step, bases.WordIndexDictionarySource)
-        return super(cls, cls).supports_step_as_input(step, label)
+    def supported_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {
+            'documents-matrix': (bases.DocumentSparseVectorEncoder,),
+            'dictionary': (bases.WordIndexDictionarySource,)
+        }
 
-    @staticmethod
-    def get_input_labels() -> list:
-        return ['documents-matrix', 'dictionary']
+    @classmethod
+    def supported_streamed_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {}
 
     async def execute(self, **inputs) -> typing.Any:
         model = LdaMulticore(
@@ -33,8 +31,8 @@ class LdaModel(checkpointed_core.PipelineStep):
         )
         return model
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'gensim-lda'
 
     def get_checkpoint_metadata(self) -> typing.Any:
@@ -68,14 +66,14 @@ class LdaModel(checkpointed_core.PipelineStep):
 class ExtractLdaTopics(checkpointed_core.PipelineStep):
 
     @classmethod
-    def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        if label == 'lda-model':
-            return issubclass(step, LdaModel)
-        return super(cls, cls).supports_step_as_input(step, label)
+    def supported_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {
+            'lda-model': (LdaModel,)
+        }
 
-    @staticmethod
-    def get_input_labels() -> list:
-        return ['lda-model']
+    @classmethod
+    def supported_streamed_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {}
 
     async def execute(self, **inputs) -> typing.Any:
         model: LdaMulticore = inputs['lda-model']
@@ -84,8 +82,8 @@ class ExtractLdaTopics(checkpointed_core.PipelineStep):
             num_words=self.config.get_casted('params.number-of-words', int)
         )
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'std-json'
 
     def get_checkpoint_metadata(self) -> typing.Any:

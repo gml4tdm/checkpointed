@@ -5,8 +5,7 @@ import matplotlib.pyplot as pyplot
 
 import checkpointed_core
 import numpy
-from checkpointed_core import PipelineStep
-from checkpointed_core.arg_spec import constraints, arguments
+from checkpointed_core.parameters import constraints, arguments
 
 from .. import bases
 
@@ -14,16 +13,15 @@ from .. import bases
 class LabelledScatter(checkpointed_core.PipelineStep):
 
     @classmethod
-    def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        if label == 'data':
-            return issubclass(step, bases.NumericalVectorData)
-        if label == 'labels':
-            return issubclass(step, bases.LabelAssignment)
-        return super(cls, cls).supports_step_as_input(step, label)
+    def supported_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {
+            'data': (bases.NumericalVectorData,),
+            'labels': (bases.LabelAssignment,)
+        }
 
-    @staticmethod
-    def get_input_labels() -> list[str | type(...)]:
-        return ['data', 'labels']
+    @classmethod
+    def supported_streamed_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {}
 
     async def execute(self, **inputs) -> typing.Any:
         fig, ax = pyplot.subplots()
@@ -53,8 +51,8 @@ class LabelledScatter(checkpointed_core.PipelineStep):
         # )
         return fig, [ax]
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'matplotlib-png'
 
     def get_checkpoint_metadata(self) -> typing.Any:
