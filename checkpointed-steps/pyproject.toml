@@ -1,7 +1,7 @@
 [project]
 name = "checkpointed-steps"
 version = "0.2.0"
-requires-python = ">= 3.8"
+requires-python = ">= 3.10"
 authors = [
     {name = "Jesse Maarleveld", email = "jessemaarleveld@gmail.com"}
 ]
