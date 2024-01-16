@@ -13,6 +13,6 @@ class CSVLoader(GenericFileLoader):
             self.config.get_casted('params.filename', str),
         )
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'pandas-pickle'

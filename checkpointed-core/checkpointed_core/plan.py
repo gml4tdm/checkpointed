@@ -1,83 +1,77 @@
-from __future__ import annotations
-
+import asyncio
 import logging
-import os
 import typing
 
-from .checkpoints import CheckpointGraph
-from .instructions import Instruction
+from .data_store import ResultStore
+from .graph import PipelineGraph
 from .handle import PipelineStepHandle
-from .step import PipelineStep
-from . import executor
-from . import store
+from .instructions import Instruction
+from .executor import TaskExecutor
 
 
 class ExecutionPlan:
 
-    def __init__(self,
+    def __init__(self, *,
                  name: str,
-                 directory: str,
                  instructions: list[Instruction],
-                 steps: dict[PipelineStepHandle, type[PipelineStep]],
-                 output_steps: frozenset[PipelineStepHandle],
-                 output_files: dict[PipelineStepHandle, str],
-                 graph: CheckpointGraph,
-                 config_by_step: dict[PipelineStepHandle, dict[str, typing.Any]],
-                 logger: logging.Logger | None = None):
-        self._name = name
+                 graph: PipelineGraph,
+                 config_by_step: dict[PipelineStepHandle, dict[str, typing.Any]]):
+        self.name = name
         self._instructions = instructions
-        self._output_files = output_files
-        self._directory = directory
-        self._outputs = output_steps
         self._graph = graph
         self._config_by_step = config_by_step
-        self._steps = steps
-        if logger is None:
-            logger = logging.getLogger(self._name)
-            logger.addHandler(logging.NullHandler())
-        self._logger = logger
-
-    @property
-    def factories_by_step(self) -> dict[PipelineStepHandle, type[PipelineStep]]:
-        return self._steps
-
-    @property
-    def graph(self) -> CheckpointGraph:
-        return self._graph
 
     def execute(self, *,
                 output_directory='',
                 checkpoint_directory='',
-                _return_values: set[PipelineStepHandle] | None = None):
-        result_store = store.ResultStore(
-            output_directory=os.path.join(output_directory, self._name),
-            checkpoint_directory=os.path.join(checkpoint_directory, self._name),
-            file_by_step=self._output_files,
-            factories_by_step=self._steps,
-            output_steps=self._outputs,
-            graph=self._graph,
-            logger=self._logger
+                logger: logging.Logger | None = None,
+                _precomputed_inputs: dict[PipelineStepHandle, typing.Any] | None = None,
+                _return_values: set[PipelineStepHandle] | None = None,
+                loop: asyncio.AbstractEventLoop | None = None):
+        if loop is None:
+            loop = asyncio.get_event_loop()
+        return loop.run_until_complete(
+            self.execute_async(
+                output_directory=output_directory,
+                checkpoint_directory=checkpoint_directory,
+                logger=logger,
+                _precomputed_inputs=_precomputed_inputs,
+                _return_values=_return_values,
+                loop=loop
+            )
         )
-        task_executor = executor.TaskExecutor(self._instructions)
-        task_executor.run(result_store=result_store,
-                          config_by_step=self._config_by_step,
-                          preloaded_inputs_by_step={},
-                          logger=self._logger)
-        if _return_values is not None:
-            return {step: result_store.retrieve(step, self._steps[step])
-                    for step in _return_values}
 
     async def execute_async(self, *,
-                            result_store: store.ResultStore,
-                            precomputed_inputs_by_step: dict[PipelineStepHandle, dict[str, typing.Any]] | None = None,
-                            _return_values=None):
-        if precomputed_inputs_by_step is None:
-            precomputed_inputs_by_step = {}
-        task_executor = executor.TaskExecutor(self._instructions)
-        await task_executor.run_async(result_store=result_store,
-                                      config_by_step=self._config_by_step,
-                                      preloaded_inputs_by_step=precomputed_inputs_by_step,
-                                      logger=self._logger)
+                            output_directory='',
+                            checkpoint_directory='',
+                            logger: logging.Logger | None = None,
+                            _precomputed_inputs: dict[PipelineStepHandle, typing.Any] | None = None,
+                            _return_values: set[PipelineStepHandle] | None = None,
+                            loop: asyncio.AbstractEventLoop):
+        if logger is None:
+            logger = logging.getLogger(__name__)
+        if _precomputed_inputs is None:
+            _precomputed_inputs = {}
+        if _return_values is None:
+            _return_values = set()
+        result_store = ResultStore(
+            graph=self._graph,
+            output_directory=output_directory,
+            checkpoint_directory=checkpoint_directory,
+            config_by_step=self._config_by_step,
+            logger=logger,
+        )
+        executor = TaskExecutor(loop)
+        await executor.run_session(
+            instructions=self._instructions,
+            result_store=result_store,
+            config_by_step=self._config_by_step,
+            preloaded_inputs_by_step=_precomputed_inputs,
+            logger=logger
+        )
         if _return_values is not None:
-            return {step: result_store.retrieve(step, self._steps[step])
+            steps = {
+                node.handle: node.factory for node in self._graph.vertices
+            }
+            return {step: result_store.retrieve(step, steps[step])
                     for step in _return_values}

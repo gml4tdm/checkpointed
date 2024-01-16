@@ -4,8 +4,7 @@ from gensim.models.lsimodel import LsiModel as _LsiModel
 from gensim.matutils import Sparse2Corpus
 
 import checkpointed_core
-from checkpointed_core import PipelineStep
-from checkpointed_core.arg_spec import constraints, arguments
+from checkpointed_core.parameters import constraints, arguments
 
 from .... import bases
 
@@ -13,16 +12,15 @@ from .... import bases
 class LsiModel(checkpointed_core.PipelineStep):
 
     @classmethod
-    def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        if label == 'documents-matrix':
-            return issubclass(step, bases.DocumentSparseVectorEncoder)
-        if label == 'dictionary':
-            return issubclass(step, bases.WordIndexDictionarySource)
-        return super(cls, cls).supports_step_as_input(step, label)
+    def supported_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {
+            'documents-matrix': (bases.DocumentSparseVectorEncoder,),
+            'dictionary': (bases.WordIndexDictionarySource,)
+        }
 
-    @staticmethod
-    def get_input_labels() -> list:
-        return ['documents-matrix', 'dictionary']
+    @classmethod
+    def supported_streamed_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {}
 
     async def execute(self, **inputs) -> typing.Any:
         model = _LsiModel(
@@ -32,8 +30,8 @@ class LsiModel(checkpointed_core.PipelineStep):
         )
         return model
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'gensim-lsi'
 
     def get_checkpoint_metadata(self) -> typing.Any:
@@ -61,14 +59,14 @@ class LsiModel(checkpointed_core.PipelineStep):
 class ExtractLsiTopics(checkpointed_core.PipelineStep):
 
     @classmethod
-    def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        if label == 'lsi-model':
-            return issubclass(step, LsiModel)
-        return super(cls, cls).supports_step_as_input(step, label)
+    def supported_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {
+            'lsi-model': (LsiModel,)
+        }
 
-    @staticmethod
-    def get_input_labels() -> list:
-        return ['lsi-model']
+    @classmethod
+    def supported_streamed_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {}
 
     async def execute(self, **inputs) -> typing.Any:
         model:  _LsiModel = inputs['lsi-model']
@@ -88,8 +86,8 @@ class ExtractLsiTopics(checkpointed_core.PipelineStep):
             for num, words in topics
         }
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'std-json'
 
     def get_checkpoint_metadata(self) -> typing.Any:

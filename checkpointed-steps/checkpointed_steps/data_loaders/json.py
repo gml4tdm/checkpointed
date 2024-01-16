@@ -11,6 +11,6 @@ class JsonLoader(GenericFileLoader):
         with open(self.config.get_casted('params.filename', str)) as file:
             return json.load(file)
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'std-json'

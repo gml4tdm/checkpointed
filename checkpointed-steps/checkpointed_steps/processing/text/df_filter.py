@@ -1,8 +1,7 @@
 import typing
 
 import checkpointed_core
-from checkpointed_core import PipelineStep
-from checkpointed_core.arg_spec import constraints, arguments
+from checkpointed_core.parameters import constraints, arguments
 
 from ... import bases
 from .df import DocumentFrequency
@@ -11,18 +10,16 @@ from .df import DocumentFrequency
 class DocumentFrequencyFilter(checkpointed_core.PipelineStep, bases.WordIndexDictionarySource):
 
     @classmethod
-    def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        if label == 'df':
-            return issubclass(step, DocumentFrequency)
-        elif label == 'documents':
-            return issubclass(step, bases.FlattenedTokenizedDocumentSource)
-        elif label == 'word-to-index-dictionary':
-            return issubclass(step, bases.WordIndexDictionarySource)
-        return super(cls, cls).supports_step_as_input(step, label)
+    def supported_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {
+            'df': (DocumentFrequency,),
+            'documents': (bases.FlattenedTokenizedDocumentSource,),
+            'word-to-index-dictionary': (bases.WordIndexDictionarySource,)
+        }
 
-    @staticmethod
-    def get_input_labels() -> list:
-        return ['df', 'documents', 'word-to-index-dictionary']
+    @classmethod
+    def supported_streamed_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {}
 
     async def execute(self, **inputs) -> typing.Any:
         result = {}
@@ -49,9 +46,10 @@ class DocumentFrequencyFilter(checkpointed_core.PipelineStep, bases.WordIndexDic
             result[token] = len(result)
         return result
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'std-pickle'
+
     def get_checkpoint_metadata(self) -> typing.Any:
         return {}
 

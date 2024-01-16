@@ -8,17 +8,16 @@ import types
 import typing
 
 import checkpointed_core
-from checkpointed_core import PipelineStep
-from checkpointed_core.arg_spec import constraints as _constraints
-from checkpointed_core.arg_spec import arguments as _arguments
+from checkpointed_core.parameters import constraints as _constraints
+from checkpointed_core.parameters import arguments as _arguments
 
 __all__ = ['pipeline_step']
 
 
-
 def pipeline_step(*,
                   save_data_format: str,
-                  supported_input_steps,
+                  supported_inputs,
+                  supported_streaming_inputs,
                   marker_classes,
                   is_pure=False,
                   arguments=None,
@@ -51,7 +50,12 @@ def pipeline_step(*,
                 '$_pure': is_pure,
                 '$_arguments': arguments if arguments is not None else {},
                 '$_constraints': constraints if constraints is not None else [],
-                '$_supported_inputs': supported_input_steps,
+                '$_supported_inputs': {
+                    key: tuple(value) for key, value in supported_inputs.items()
+                },
+                '$_supported_streaming_inputs': {
+                    key: tuple(value) for key, value in supported_streaming_inputs.items()
+                },
                 '$_hash': hash_value,
                 '$_accepts_varargs': accepts_varargs,
             }
@@ -63,11 +67,12 @@ def pipeline_step(*,
 class FunctionStepBase(checkpointed_core.PipelineStep, abc.ABC):
 
     @classmethod
-    def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        mapping = getattr(cls, '$_supported_inputs')
-        if label in mapping:
-            return issubclass(step, tuple(mapping[label]))
-        raise ValueError(f"Step {cls} does not have an input labelled {label!r}")
+    def supported_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return getattr(cls, '$_supported_inputs')
+
+    @classmethod
+    def supported_streamed_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return getattr(cls, '$_supported_streaming_inputs')
 
     @classmethod
     def get_input_labels(cls) -> list:
@@ -82,7 +87,7 @@ class FunctionStepBase(checkpointed_core.PipelineStep, abc.ABC):
         return function(self.config, **inputs)
 
     @classmethod
-    def get_data_format(cls) -> str:
+    def get_output_storage_format(cls) -> str:
         return getattr(cls, '$_data_format')
 
     def get_checkpoint_metadata(self) -> typing.Any:

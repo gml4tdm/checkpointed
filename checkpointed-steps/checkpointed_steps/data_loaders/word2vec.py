@@ -1,8 +1,7 @@
-import os.path
 import typing
 
 import gensim.models
-from checkpointed_core.arg_spec import arguments
+from checkpointed_core.parameters import arguments
 from gensim.models import KeyedVectors
 
 from .shared import GenericFileLoader
@@ -17,8 +16,8 @@ class CWord2VecLoader(GenericFileLoader):
             binary=self.config.get_casted('params.file-is-binary', bool),
         )
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'gensim-c-word2vec'
 
     @classmethod

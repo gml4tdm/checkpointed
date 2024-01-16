@@ -1,8 +1,7 @@
 import typing
 
 import checkpointed_core
-from checkpointed_core import PipelineStep
-from checkpointed_core.arg_spec import arguments, constraints
+from checkpointed_core.parameters import arguments, constraints
 
 import numpy
 
@@ -13,18 +12,15 @@ from ...data_loaders import CWord2VecLoader, GensimWord2VecLoader, GloveLoader
 class Word2VecEncoder(checkpointed_core.PipelineStep, bases.WordVectorEncoder):
 
     @classmethod
-    def supports_step_as_input(cls, step: type[PipelineStep], label: str) -> bool:
-        if label == 'documents':
-            return issubclass(step, bases.TokenizedDocumentSource)
-        elif label == 'vectors':
-            return step in [
-                CWord2VecLoader, GensimWord2VecLoader, GloveLoader
-            ]
-        return super(cls, cls).supports_step_as_input(step, label)
-
-    @staticmethod
-    def get_input_labels() -> list:
-        return ['documents', 'vectors']
+    def supported_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {
+            'documents': (bases.TokenizedDocumentSource,),
+            'vectors': (CWord2VecLoader, GensimWord2VecLoader, GloveLoader)
+        }
+    
+    @classmethod
+    def supported_streamed_inputs(cls) -> dict[str | type(...), tuple[type]]:
+        return {}
 
     async def execute(self, **inputs) -> typing.Any:
         vectors = inputs['vectors']
@@ -54,8 +50,8 @@ class Word2VecEncoder(checkpointed_core.PipelineStep, bases.WordVectorEncoder):
             result.append(numpy.vstack(document_vectors))
         return numpy.vstack(result)
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'numpy-array'
 
     @classmethod

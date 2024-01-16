@@ -12,6 +12,6 @@ class LoadWordToIndexDictionary(shared.GenericFileLoader, bases.WordIndexDiction
         with open(self.config.get_casted('params.filename', str), 'rb') as f:
             return pickle.load(f)
 
-    @staticmethod
-    def get_data_format() -> str:
+    @classmethod
+    def get_output_storage_format(cls) -> str:
         return 'std-pickle'
