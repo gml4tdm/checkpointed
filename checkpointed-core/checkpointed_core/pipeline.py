@@ -1,259 +1,243 @@
 from __future__ import annotations
+
 import collections
-import dataclasses
 import graphlib
-import itertools
-import logging
 import typing
 
-from . import step as _step
-from .checkpoints import CheckpointGraph
+from .graph import *
 from .handle import PipelineStepHandle
+from .step import PipelineStep
 from .instructions import Instruction, Start, Sync
 from .plan import ExecutionPlan
 
-
-def _powerset(x):
-    return itertools.chain.from_iterable(
-        itertools.combinations(x, r) for r in range(1, len(x)+1)
-    )
-
-
-@dataclasses.dataclass(frozen=True)
-class PipelineNode:
-    name: str | None
-    handle: PipelineStepHandle
-    factory: type[_step.PipelineStep]
-    is_input: bool
-    is_output: bool
-    output_filename: str | None = None
-
-
-@dataclasses.dataclass(frozen=True)
-class PipelineConnection:
-    source: PipelineStepHandle
-    target: PipelineStepHandle
-    label: str
+__all__ = ['Pipeline']
 
 
 class Pipeline:
 
     def __init__(self, name: str):
-        self._name = name
-        self._steps: dict[PipelineStepHandle, type[_step.PipelineStep]] = {}
-        self._connections = collections.defaultdict(list)
-        self._connections_types = {}
-        self._inputs = set()
-        self._outputs = set()
-        self._output_files = {}
+        self.name = name
+        self._nodes: dict[PipelineStepHandle, PipelineNode] = {}
+        self._edges: dict[PipelineStepHandle, dict[str, PipelineStepHandle]] = {}
 
-    @property
-    def pipeline_name(self) -> str:
-        return self._name
-
-    @property
-    def nodes(self) -> typing.Iterator[PipelineNode]:
-        for handle, factory in self._steps.items():
-            yield PipelineNode(
-                name=handle.name,
-                handle=handle,
-                factory=factory,
-                is_input=handle in self._inputs,
-                is_output=handle in self._outputs,
-                output_filename=self._output_files.get(handle)
-            )
-
-    @property
-    def connections(self) -> typing.Iterator[PipelineConnection]:
-        for source, targets in self._connections.items():
-            for target in targets:
-                yield PipelineConnection(
-                    source=source,
-                    target=target,
-                    label=self._connections_types[(source, target)]
-                )
-
-    def add_source(self,
-                   factory: type[_step.PipelineStep], *,
-                   is_sink=False,
-                   filename: str = '',
-                   name: None | str = None) -> PipelineStepHandle:
-        handle = self.add_step(factory, name=name)
-        self._inputs.add(handle)
-        if is_sink:
-            if not filename:
-                raise ValueError(f"Filename must be provided for sink")
-            self._outputs.add(handle)
-            self._output_files[handle] = filename
-        return handle
-
-    def add_sink(self,
-                 factory: type[_step.PipelineStep], *,
-                 filename: str,
-                 name: None | str = None) -> PipelineStepHandle:
-        handle = self.add_step(factory, name=name)
-        self._outputs.add(handle)
-        self._output_files[handle] = filename
-        return handle
+    def as_graph(self) -> PipelineGraph:
+        return PipelineGraph(
+            vertices=list(self._nodes.values()),
+            edges=[
+                PipelineConnection(source, target, label)
+                for source, connections in self._edges.items()
+                for label, target in connections.items()
+            ]
+        )
 
     def add_step(self,
-                 factory: type[_step.PipelineStep], *,
+                 factory: type[PipelineStep],
                  name: None | str = None) -> PipelineStepHandle:
-        handle = PipelineStepHandle(len(self._steps), name)
-        self._steps[handle] = factory
+        return self.add_node(
+            factory=factory,
+            name=name,
+            is_source=False,
+            is_sink=False
+        )
+
+    def add_source(self,
+                   factory: type[PipelineStep],
+                   name: None | str = None) -> PipelineStepHandle:
+        return self.add_node(
+            factory=factory,
+            name=name,
+            is_source=True,
+            is_sink=False
+        )
+
+    def add_sink(self,
+                 factory: type[PipelineStep],
+                 filename: str,
+                 name: None | str = None) -> PipelineStepHandle:
+        return self.add_node(
+            factory=factory,
+            name=name,
+            is_source=False,
+            is_sink=True,
+            filename=filename
+        )
+
+    def add_source_sink(self,
+                        factory: type[PipelineStep],
+                        filename: str,
+                        name: None | str = None) -> PipelineStepHandle:
+        return self.add_node(
+            factory=factory,
+            name=name,
+            is_source=True,
+            is_sink=True,
+            filename=filename
+        )
+
+    def add_node(self, *,
+                 factory: type[PipelineStep],
+                 is_source: bool,
+                 is_sink: bool,
+                 filename: str | None = None,
+                 name: str | None = None) -> PipelineStepHandle:
+        if is_sink and filename is None:
+            raise ValueError("filename must be specified for sink nodes")
+        handle = PipelineStepHandle(len(self._nodes), name)
+        node = PipelineNode(
+            name=name,
+            factory=factory,
+            handle=handle,
+            is_input=is_source,
+            is_output=is_sink,
+            output_filename=filename
+        )
+        self._nodes[handle] = node
         return handle
 
-    def connect(self, source: PipelineStepHandle, sink: PipelineStepHandle, label: str):
-        if source not in self._steps:
-            raise ValueError(f"Source step {source} not found in pipeline {self._name}")
-        if sink not in self._steps:
-            raise ValueError(f"Sink step {sink} not found in pipeline {self._name}")
-        if sink in self._connections[source]:
-            raise ValueError(f"Connection already exists between {source} and {sink}")
-        if sink in self._inputs:
-            raise ValueError(f"Cannot use an input step ({sink}) as sink")
-        if sink in self._connections[source]:
-            raise ValueError(f"Cannot have multiple connections between source {source} and sink {sink}")
+    def connect(self,
+                source: PipelineStepHandle,
+                sink: PipelineStepHandle,
+                label: str, *,
+                streaming=False):
+        if source not in self._nodes:
+            raise ValueError(f"source node {source} not found")
+        if sink not in self._nodes:
+            raise ValueError(f"sink node {sink} not found")
+        if self._nodes[sink].is_input:
+            raise ValueError(f"sink node {sink} is an input node")
         if source == sink:
-            raise ValueError(f"Cannot connect step {source} to itself")
-        if not self._steps[sink].supports_step_as_input(self._steps[source], label):
-            raise ValueError(f"Cannot connect {source} to {sink} (unsupported input for label {label})")
-        assert (
-                label in self._steps[sink].get_input_labels() or
-                ... in self._steps[sink].get_input_labels()
-        )
-        self._connections[source].append(sink)
-        self._connections_types[(source, sink)] = label
+            raise ValueError(f"source and sink nodes cannot be the same")
+        if streaming:
+            supported = self._nodes[sink].factory.supported_streamed_inputs()
+        else:
+            supported = self._nodes[sink].factory.supported_inputs()
+        if label not in supported and ... not in supported:
+            raise ValueError(f"sink node {sink} does not support input type {label}")
+        if not issubclass(self._nodes[source].factory, supported[label]):
+            if label is ...:
+                raise TypeError(
+                    f'Sink node of type {self._nodes[sink].factory.__name__}) wildcard'
+                    f'connection (...) does not support input of type '
+                    f'{self._nodes[source].factory.__name__}'
+                )
+            raise TypeError(
+                f'Sink node of type {self._nodes[sink].factory.__name__}) connection '
+                f'{label!r} does not support input of type '
+                f'{self._nodes[source].factory.__name__}'
+            )
+        if source in self._edges:
+            if label in self._edges[source]:
+                raise ValueError(f"connection {source} -> {sink} of type {label} already exists")
+        else:
+            self._edges[source] = {}
+        self._edges[source][label] = sink
 
     def build(self,
-              config_by_step: dict[PipelineStepHandle, dict[str, typing.Any]], *,
-              logger: logging.Logger | None = None):
-        self._check_connection_constraints()
+              config_by_step: dict[PipelineStepHandle, dict[str, typing.Any]]) -> ExecutionPlan:
+        self._check_cycles()
+        self._check_reachability()
+        self._check_incoming_connections()
         self._check_source_sink_constraints()
-        self._check_reachability_constraints()
-        self._check_cycle_constraints()
-        instructions = self._build_execution_plan()
+        instructions = self._build_instruction_list()
         return ExecutionPlan(
-            name=self._name,
-            directory=self._name,
+            name=self.name,
             instructions=instructions,
-            steps=self._steps,
-            output_steps=frozenset(self._outputs),
-            output_files=self._output_files,
             config_by_step=config_by_step,
-            logger=logger,
-            graph=CheckpointGraph(
-                inputs=self._inputs,
-                vertices=set(self._steps),
-                connections=self._connections,
-                connection_types=self._connections_types,
-                factories=self._steps,
-                config_by_step=config_by_step,
-                logger=logger
-            )
+            graph=self.as_graph()
         )
 
-    def _build_execution_plan(self) -> list[Instruction]:
-        dependencies_per_step = collections.defaultdict(set)
-        for source, connections in self._connections.items():
-            for sink in connections:
-                dependencies_per_step[sink].add(source)
-        plan_per_dependency_group = collections.defaultdict(set)
+    def _build_instruction_list(self) -> list[Instruction]:
+        incoming_per_node = self._get_incoming_by_node()
+        steps_per_group = collections.defaultdict(set)
+        for handle, incoming in incoming_per_node.items():
+            steps_per_group[tuple(sorted(incoming))].add(handle)
+        label_by_connection = {}
+        for source, connections in self._edges.items():
+            for label, target in connections.items():
+                label_by_connection[(source, target)] = label
         instructions = []
-        for handle in self._inputs:
-            instructions.append(
-                Start(
-                    handle,
-                    self._steps[handle],
-                    [(h, self._steps[h], self._connections_types[(h, handle)])
-                     for h in dependencies_per_step[handle]]
-                )
-            )
-        for handle, dependencies in dependencies_per_step.items():
-            if dependencies:
-                key = tuple(sorted(dependencies, key=lambda h: h.get_raw_identifier()))
-                plan_per_dependency_group[key].add(handle)
-        for requirements, handles in plan_per_dependency_group.items():
+        for dependencies, handles in steps_per_group:
             instructions.append(
                 Sync(
-                    list(requirements),
+                    list(dependencies),
                     [
                         Start(
-                            handle,
-                            self._steps[handle],
-                            [(h, self._steps[h], self._connections_types[(h, handle)])
-                             for h in dependencies_per_step[handle]]
+                            node.handle,
+                            node.factory,
+                            [
+                                (
+                                    handle,
+                                    self._nodes[handle].factory,
+                                    label_by_connection[(handle, node.handle)]
+                                )
+                                for handle in incoming_per_node[node.handle]
+                            ]
                         )
-                        for handle in handles
+                        for node in map(lambda h: self._nodes[h], handles)
                     ]
                 )
             )
         return instructions
 
-    def _check_connection_constraints(self):
-        accepting_varargs = {
-            handle
-            for handle, factory in self._steps.items()
-            if ... in factory.get_input_labels()
-        }
-        missing = {
-            handle: set(factory.get_input_labels())
-            for handle, factory in self._steps.items()
-        }
-        for source, sinks in self._connections.items():
-            for sink in sinks:
-                label = self._connections_types[(source, sink)]
-                if label in missing[sink]:
-                    missing[sink].remove(label)
-                elif sink not in accepting_varargs:
-                    raise ValueError(
-                        f"Cannot connect {source} to {sink} (unsupported input for label {label})"
-                    )
-        missing_connections = ' | '.join(
-            f"{handle} ({', '.join(missing[handle])})"
-            for handle in missing
-            if missing[handle]
-        )
-        if missing_connections:
-            raise ValueError(f"Missing connections: {missing_connections}")
+    def _get_incoming_by_node(self) -> dict[PipelineStepHandle, set[PipelineStepHandle]]:
+        incoming_by_node = collections.defaultdict(set)
+        for source, connections in self._edges.items():
+            for label, target in connections.items():
+                incoming_by_node[target].add(source)
+        return dict(incoming_by_node)
+
+    def _check_incoming_connections(self):
+        incoming_by_node = self._get_incoming_by_node()
+        for handle, incoming in incoming_by_node.items():
+            expected = set(self._nodes[handle].factory.supported_inputs())
+            missing = expected - incoming
+            missing.discard(...)
+            if missing:
+                raise ValueError(
+                    f"missing incoming connections for step {handle}: {sorted(missing)}"
+                )
 
     def _check_source_sink_constraints(self):
-        for handle in self._steps:
-            cond = (
-                    handle in self._inputs
-                    or handle in self._outputs
-                    or (self._is_source(handle) and self._is_sink(handle))
-            )
-            if not cond:
-                raise ValueError(f'Found non-boundary step which has not both a source and a sink ({handle})')
-        for handle in self._inputs:
-            if handle not in self._connections and handle not in self._outputs:
-                raise ValueError(f'Found input step without any connections ({handle})')
-        for handle in self._outputs:
-            if not self._is_sink(handle) and handle not in self._inputs:
-                raise ValueError(f'Found output step without any connections ({handle})')
+        incoming_by_node = self._get_incoming_by_node()
+        for handle, node in self._nodes.items():
+            if node.is_input and handle not in self._edges:
+                if not node.is_output:
+                    raise ValueError(
+                        f"Input step {handle} has no outgoing connections."
+                    )
+            elif node.is_output and node not in incoming_by_node:
+                raise ValueError(
+                    f"Output step {handle} has no incoming connections."
+                )
+            elif handle not in self._edges:
+                raise ValueError(
+                    f"Regular step {handle} has no outgoing connections."
+                )
+            elif handle not in incoming_by_node:
+                raise ValueError(
+                    f"Regular step {handle} has no incoming connections."
+                )
 
-    def _check_reachability_constraints(self):
+    def _check_reachability(self):
         reachable = set()
-        stack = list(self._inputs)
+        stack = [
+            node.handle for node in self._nodes.values() if node.is_input
+        ]
         while stack:
             handle = stack.pop()
             if handle not in reachable:
                 reachable.add(handle)
-                stack.extend(self._connections[handle])
-        remainder = set(self._steps.keys()) - reachable
-        if remainder:
-            raise ValueError('Found unreachable steps')
+                stack.extend(self._edges[handle].values())
+        missing = set(self._nodes.keys()) - reachable
+        if missing:
+            raise ValueError(f"Unreachable steps in pipeline: {sorted(missing)}")
 
-    def _check_cycle_constraints(self):
-        sorter = graphlib.TopologicalSorter(self._connections)
+    def _check_cycles(self):
+        graph = {
+            source: set(connections.values())
+            for source, connections in self._edges.items()
+        }
         try:
-            sorter.static_order()
+            graphlib.TopologicalSorter(graph).static_order()
         except graphlib.CycleError:
-            raise ValueError('Found cycle in pipeline')
-
-    def _is_sink(self, handle: PipelineStepHandle):
-        return any(handle in sinks for sinks in self._connections.values())
-
-    def _is_source(self, handle: PipelineStepHandle):
-        return handle in self._connections
+            raise ValueError("pipeline contains a cycle")

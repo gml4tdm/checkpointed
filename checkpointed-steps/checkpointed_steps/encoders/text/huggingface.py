@@ -36,7 +36,7 @@ class HuggingFaceDocumentEncoder(checkpointed_core.PipelineStep, bases.DocumentV
         # model = transformers.pipeline(
         #     model=self.config.get_casted('params.huggingface-model', str)
         # )
-        # TODO: new base for documents divided into sentences
+        # TODO: checkpointed_core base for documents divided into sentences
         # TODO: loop over documents, encode each documents
         # TODO: convert documents to numpy arrays
         model_name = self.config.get_casted('params.huggingface-model', str)
