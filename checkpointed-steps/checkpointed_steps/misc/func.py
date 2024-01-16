@@ -50,8 +50,12 @@ def pipeline_step(*,
                 '$_pure': is_pure,
                 '$_arguments': arguments if arguments is not None else {},
                 '$_constraints': constraints if constraints is not None else [],
-                '$_supported_inputs': supported_inputs,
-                '$_supported_streaming_inputs': supported_streaming_inputs,
+                '$_supported_inputs': {
+                    key: tuple(value) for key, value in supported_inputs.items()
+                },
+                '$_supported_streaming_inputs': {
+                    key: tuple(value) for key, value in supported_streaming_inputs.items()
+                },
                 '$_hash': hash_value,
                 '$_accepts_varargs': accepts_varargs,
             }

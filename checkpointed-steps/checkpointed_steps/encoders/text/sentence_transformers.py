@@ -13,7 +13,7 @@ class SentenceTransformersDocumentEncoder(checkpointed_core.PipelineStep, bases.
     @classmethod
     def supported_inputs(cls) -> dict[str | type(...), tuple[type]]:
         return {
-            'documents': (bases.FlattenedTokenizedDocumentSource,)
+            'documents': (bases.TextDocumentSource,)
         }
 
     @classmethod

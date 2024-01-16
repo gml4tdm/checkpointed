@@ -18,7 +18,7 @@ class Pipeline:
     def __init__(self, name: str):
         self.name = name
         self._nodes: dict[PipelineStepHandle, PipelineNode] = {}
-        self._edges: dict[PipelineStepHandle, dict[str, PipelineStepHandle]] = {}
+        self._edges: dict[PipelineStepHandle, dict[PipelineStepHandle, str]] = {}
 
     def as_graph(self) -> PipelineGraph:
         return PipelineGraph(
@@ -26,7 +26,7 @@ class Pipeline:
             edges=[
                 PipelineConnection(source, target, label)
                 for source, connections in self._edges.items()
-                for label, target in connections.items()
+                for target, label in connections.items()
             ]
         )
 
@@ -121,16 +121,21 @@ class Pipeline:
                     f'{self._nodes[source].factory.__name__}'
                 )
             raise TypeError(
-                f'Sink node of type {self._nodes[sink].factory.__name__}) connection '
+                f'Sink node of type {self._nodes[sink].factory.__name__} connection '
                 f'{label!r} does not support input of type '
                 f'{self._nodes[source].factory.__name__}'
             )
         if source in self._edges:
-            if label in self._edges[source]:
-                raise ValueError(f"connection {source} -> {sink} of type {label} already exists")
+            if sink in self._edges[source] and label == self._edges[source][sink]:
+                raise ValueError(
+                    f'Cannot make connection {source} -{label}-> {sink} because '
+                    f'the connection {source} -{label}-> {self._edges[source][sink]} already exists.'
+                )
         else:
             self._edges[source] = {}
-        self._edges[source][label] = sink
+        if source not in self._edges:
+            self._edges[source] = {}
+        self._edges[source][sink] = label
 
     def build(self,
               config_by_step: dict[PipelineStepHandle, dict[str, typing.Any]]) -> ExecutionPlan:
@@ -149,14 +154,11 @@ class Pipeline:
     def _build_instruction_list(self) -> list[Instruction]:
         incoming_per_node = self._get_incoming_by_node()
         steps_per_group = collections.defaultdict(set)
-        for handle, incoming in incoming_per_node.items():
+        for handle in self._nodes:
+            incoming = incoming_per_node.get(handle, set())
             steps_per_group[tuple(sorted(incoming))].add(handle)
-        label_by_connection = {}
-        for source, connections in self._edges.items():
-            for label, target in connections.items():
-                label_by_connection[(source, target)] = label
         instructions = []
-        for dependencies, handles in steps_per_group:
+        for dependencies, handles in steps_per_group.items():
             instructions.append(
                 Sync(
                     list(dependencies),
@@ -168,9 +170,9 @@ class Pipeline:
                                 (
                                     handle,
                                     self._nodes[handle].factory,
-                                    label_by_connection[(handle, node.handle)]
+                                    self._edges[handle][node.handle]
                                 )
-                                for handle in incoming_per_node[node.handle]
+                                for handle in incoming_per_node.get(node.handle, set())
                             ]
                         )
                         for node in map(lambda h: self._nodes[h], handles)
@@ -182,12 +184,19 @@ class Pipeline:
     def _get_incoming_by_node(self) -> dict[PipelineStepHandle, set[PipelineStepHandle]]:
         incoming_by_node = collections.defaultdict(set)
         for source, connections in self._edges.items():
-            for label, target in connections.items():
+            for target, label in connections.items():
                 incoming_by_node[target].add(source)
         return dict(incoming_by_node)
 
+    def _get_incoming_labels_by_node(self) -> dict[PipelineStepHandle, set[str]]:
+        incoming_labels_by_node = collections.defaultdict(set)
+        for source, connections in self._edges.items():
+            for target, label in connections.items():
+                incoming_labels_by_node[target].add(label)
+        return dict(incoming_labels_by_node)
+
     def _check_incoming_connections(self):
-        incoming_by_node = self._get_incoming_by_node()
+        incoming_by_node = self._get_incoming_labels_by_node()
         for handle, incoming in incoming_by_node.items():
             expected = set(self._nodes[handle].factory.supported_inputs())
             missing = expected - incoming
@@ -200,15 +209,16 @@ class Pipeline:
     def _check_source_sink_constraints(self):
         incoming_by_node = self._get_incoming_by_node()
         for handle, node in self._nodes.items():
-            if node.is_input and handle not in self._edges:
-                if not node.is_output:
+            if node.is_input:
+                if handle not in self._edges and not node.is_output:
                     raise ValueError(
                         f"Input step {handle} has no outgoing connections."
                     )
-            elif node.is_output and node not in incoming_by_node:
-                raise ValueError(
-                    f"Output step {handle} has no incoming connections."
-                )
+            elif node.is_output:
+                if handle not in incoming_by_node:
+                    raise ValueError(
+                        f"Output step {handle} has no incoming connections."
+                    )
             elif handle not in self._edges:
                 raise ValueError(
                     f"Regular step {handle} has no outgoing connections."
@@ -227,14 +237,14 @@ class Pipeline:
             handle = stack.pop()
             if handle not in reachable:
                 reachable.add(handle)
-                stack.extend(self._edges[handle].values())
+                stack.extend(self._edges.get(handle, []))
         missing = set(self._nodes.keys()) - reachable
         if missing:
             raise ValueError(f"Unreachable steps in pipeline: {sorted(missing)}")
 
     def _check_cycles(self):
         graph = {
-            source: set(connections.values())
+            source: set(connections)
             for source, connections in self._edges.items()
         }
         try:

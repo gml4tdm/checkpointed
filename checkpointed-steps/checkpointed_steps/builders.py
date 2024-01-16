@@ -12,11 +12,13 @@ def graph_pipeline(name: str,
     config = {}
     handle_mapping = {}
     for name, factory, config_for_step in steps:
-        if name in inputs:
+        if name in inputs and name in outputs:
+            handle = pipeline.add_source_sink(factory,
+                                              filename=outputs[name],
+                                              name=name)
+        elif name in inputs:
             handle = pipeline.add_source(factory,
-                                         name=name,
-                                         is_sink=name in outputs,
-                                         filename=outputs[name] if name in outputs else None)
+                                         name=name)
         elif name in outputs:
             handle = pipeline.add_sink(factory, name=name, filename=outputs[name])
         else:

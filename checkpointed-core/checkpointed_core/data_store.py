@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import pickle
 import shutil
 import typing
 
@@ -41,14 +42,14 @@ class ResultStore:
         # Load checkpointing
         self._graph_file = os.path.join(
             self._checkpoint_metadata_directory,
-            'graph.json'
+            'graph.pickle'
         )
         self._graph = graph
         self._config_by_step = config_by_step
         self._checkpoint_graph = checkpointing.CheckpointGraph(graph, config_by_step)
         if os.path.exists(self._graph_file):
-            with open(self._graph_file, 'r') as f:
-                old_graph = json.load(f)
+            with open(self._graph_file, 'rb') as f:
+                old_graph = pickle.load(f)
             self._caching_mapping = self._checkpoint_graph.compute_checkpoint_mapping(
                 old_graph, logger
             )
@@ -67,8 +68,8 @@ class ResultStore:
             self._caching_mapping, self._logger
         )
         self._valid_dynamic_endpoints = set()
-        with open(self._graph_file, 'w') as f:
-            json.dump(self._graph, f)
+        with open(self._graph_file, 'wb') as f:
+            pickle.dump(self._checkpoint_graph, f)
 
     def _check_static_checkpoints(self) -> set[PipelineStepHandle]:
         valid_checkpoints = set()
@@ -108,7 +109,10 @@ class ResultStore:
             os.makedirs(self._output_directory, exist_ok=True)
 
     def _remap_checkpoints(self):
+        to_rename = []
         for new, old in self._caching_mapping.items():
+            if not os.path.exists(self._get_metadata_filename(old)):
+                continue
             os.rename(
                 self._get_checkpoint_filename(old),
                 self._get_checkpoint_filename(new) + '_temp'
@@ -117,7 +121,8 @@ class ResultStore:
                 self._get_metadata_filename(old),
                 self._get_metadata_filename(new) + '_temp'
             )
-        for new in self._caching_mapping:
+            to_rename.append(new)
+        for new in to_rename:
             os.rename(
                 self._get_checkpoint_filename(new) + '_temp',
                 self._get_checkpoint_filename(new)
