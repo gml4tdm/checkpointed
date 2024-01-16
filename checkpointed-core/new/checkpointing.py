@@ -34,6 +34,9 @@ class CheckpointGraph:
         self._input_nodes = {
             node.handle for node in graph.vertices if node.is_input
         }
+        self._dynamic_steps = {node.handle
+                               for node in graph.vertices
+                               if node.factory.has_dynamic_checkpoint()}
         self._config_by_step = config_by_step
 
     @property
@@ -48,6 +51,58 @@ class CheckpointGraph:
             old: CheckpointGraph,
             logger: logging.Logger) -> dict[PipelineStepHandle, PipelineStepHandle]:
         return self._compute_best_matchup(old, logger)
+
+    def update_checkpoint_mapping(self,
+                                  mapping: dict[PipelineStepHandle, PipelineStepHandle],
+                                  valid_checkpoints: set[PipelineStepHandle],
+                                  _logger: logging) -> dict[PipelineStepHandle, PipelineStepHandle]:
+        result = {
+            x: y
+            for x, y in mapping.items()
+            if x in valid_checkpoints
+        }
+        while True:
+            additions = {
+                x: y
+                for x, y in mapping.items()
+                if (
+                        x not in result and
+                        x in valid_checkpoints and
+                        all(
+                            self._inputs_per_node[(x, label)] in result
+                            for label in self._input_labels_per_node[x]
+                        )
+                )
+            }
+            if not additions:
+                break
+            result |= additions
+        return result
+
+    def extract_dynamic_steps(self,
+                              mapping: dict[PipelineStepHandle, PipelineStepHandle]) -> set[PipelineStepHandle]:
+        return set(mapping) & self._dynamic_steps
+
+    def extract_dynamic_requirements(
+            self,
+            mapping: dict[PipelineStepHandle, PipelineStepHandle],
+            _logger: logging.Logger) -> dict[PipelineStepHandle, set[PipelineStepHandle]]:
+        requirements_by_step = collections.defaultdict(set)
+        for start in self._input_nodes:
+            dynamic_nodes_on_path = set()
+            todo = [start]
+            while todo:
+                current = todo.pop()
+                requirements_by_step[current] |= dynamic_nodes_on_path
+                if current in self._dynamic_steps:
+                    dynamic_nodes_on_path.add(current)
+                for target, _ in self._outputs_per_node[current]:
+                    todo.append(target)
+        return {
+            key: value
+            for key, value in requirements_by_step.items()
+            if key in mapping
+        }
 
     def _compute_best_matchup(self,
                               old: CheckpointGraph,
@@ -79,7 +134,6 @@ class CheckpointGraph:
             self,
             matchup: list[tuple[PipelineStepHandle, PipelineStepHandle]],
             old: CheckpointGraph,
-            #valid_checkpoints: set[PipelineStepHandle],
             _logger: logging.Logger):
         cacheable = {
             (x, y)
@@ -87,7 +141,6 @@ class CheckpointGraph:
             if (
                 x in self._input_nodes and
                 y in old._input_nodes
-                #y in valid_checkpoints
             )
         }
         while True:
@@ -96,7 +149,6 @@ class CheckpointGraph:
                 for x, y in matchup
                 if (
                     (x, y) not in cacheable and
-                    #y in valid_checkpoints and
                     self._check_input_compatibility(x, y, old, cacheable)
                 )
             }
@@ -118,5 +170,3 @@ class CheckpointGraph:
             if (p, q) not in cacheable:
                 return False
         return True
-
-
