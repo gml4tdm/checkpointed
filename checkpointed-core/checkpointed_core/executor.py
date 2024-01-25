@@ -154,7 +154,7 @@ class Session:
             if self._can_skip(_handle, _factory):
                 logger.info(f'Skipping task (found valid checkpoint)')
                 return _handle, _factory
-            logger.info(f'[{_handle}] Running task (no valid checkpoint)')
+            logger.info(f'Running task (no valid checkpoint)')
             instance = _factory(self._config_by_step[_handle], logger)
             inputs, input_formats, config = self._prepare_task_inputs(
                 _handle, _inputs, logger
@@ -162,7 +162,7 @@ class Session:
             instance.input_storage_formats = input_formats
             instance.execution_context = config
             result = await instance.execute(**dict(inputs))
-            logger.info(f'[{_handle}] Storing result')
+            logger.info(f'Storing result')
             self._result_store.store(_handle,
                                      _factory,
                                      result,
@@ -171,7 +171,7 @@ class Session:
                 self._result_store.mark_checkpoint(
                     _handle, instance.dynamic_checkpoint_is_valid()
                 )
-            logger.info(f'[{_handle}] Finished task')
+            logger.info(f'Finished task')
             return _handle, _factory
 
         return wrapper()

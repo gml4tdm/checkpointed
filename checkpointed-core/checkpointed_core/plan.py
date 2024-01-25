@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os.path
 import typing
 
 from .data_store import ResultStore
@@ -56,8 +57,8 @@ class ExecutionPlan:
             _return_values = set()
         result_store = ResultStore(
             graph=self._graph,
-            output_directory=output_directory,
-            checkpoint_directory=checkpoint_directory,
+            output_directory=os.path.join(output_directory, self.name),
+            checkpoint_directory=os.path.join(checkpoint_directory, self.name),
             config_by_step=self._config_by_step,
             logger=logger,
         )
