@@ -15,6 +15,10 @@ class TaskExecutor:
     def __init__(self, loop=None):
         self._loop = loop if loop is not None else asyncio.get_event_loop()
 
+    @property
+    def loop(self):
+        return self._loop
+
     async def run_session(self, *,
                           instructions: list[Instruction],
                           result_store: ResultStore,

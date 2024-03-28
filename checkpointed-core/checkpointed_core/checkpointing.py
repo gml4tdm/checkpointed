@@ -55,11 +55,13 @@ class CheckpointGraph:
     def update_checkpoint_mapping(self,
                                   mapping: dict[PipelineStepHandle, PipelineStepHandle],
                                   valid_checkpoints: set[PipelineStepHandle],
-                                  _logger: logging) -> dict[PipelineStepHandle, PipelineStepHandle]:
+                                  logger: logging) -> dict[PipelineStepHandle, PipelineStepHandle]:
+        logger.info('Updating mapping with valid checkpoints.')
+        logger.info(f'Valid checkpoints: {", ".join(map(str, valid_checkpoints))}')
         result = {
             x: y
             for x, y in mapping.items()
-            if x in valid_checkpoints
+            if x in valid_checkpoints and x in self._input_nodes
         }
         while True:
             additions = {
@@ -77,6 +79,11 @@ class CheckpointGraph:
             if not additions:
                 break
             result |= additions
+        logger.info(f'Final checkpoint mapping preserves {len(result)} steps!')
+        if result:
+            logger.info('Final checkpoint mapping:')
+            for key in sorted(result, key=lambda h: h.get_raw_identifier()):
+                logger.info(f'{key} -> {result[key]}')
         return result
 
     def extract_dynamic_steps(self,
@@ -113,6 +120,11 @@ class CheckpointGraph:
                                                                  old,
                                                                  logger)
             best = max(best, mapping, key=len)
+        logger.info(f'Found a checkpoint mapping preserving {len(best)} steps!')
+        if best:
+            logger.info('Final checkpoint mapping:')
+            for key in sorted(best, key=lambda h: h.get_raw_identifier()):
+                logger.info(f'{key} -> {best[key]}')
         return best
 
     def _compute_equivalent_nodes(self,

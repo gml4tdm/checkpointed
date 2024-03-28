@@ -48,6 +48,7 @@ class ExecutionPlan:
                             logger: logging.Logger | None = None,
                             _precomputed_inputs: dict[PipelineStepHandle, typing.Any] | None = None,
                             _return_values: set[PipelineStepHandle] | None = None,
+                            _sub_store: ResultStore | None = None,
                             loop: asyncio.AbstractEventLoop):
         if logger is None:
             logger = logging.getLogger(__name__)
@@ -55,13 +56,16 @@ class ExecutionPlan:
             _precomputed_inputs = {}
         if _return_values is None:
             _return_values = set()
-        result_store = ResultStore(
-            graph=self._graph,
-            output_directory=os.path.join(output_directory, self.name),
-            checkpoint_directory=os.path.join(checkpoint_directory, self.name),
-            config_by_step=self._config_by_step,
-            logger=logger,
-        )
+        if _sub_store is None:
+            result_store = ResultStore(
+                graph=self._graph,
+                output_directory=os.path.join(output_directory, self.name),
+                checkpoint_directory=os.path.join(checkpoint_directory, self.name),
+                config_by_step=self._config_by_step,
+                logger=logger,
+            )
+        else:
+            result_store = _sub_store
         executor = TaskExecutor(loop)
         await executor.run_session(
             instructions=self._instructions,
